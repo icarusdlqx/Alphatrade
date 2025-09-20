@@ -5,12 +5,12 @@
   <article>
     <header>Core</header>
     <div class="grid">
-      <label>Enabled <input type="checkbox" name="ENABLED" {% if S.ENABLED %}checked{% endif %}></label>
-      <label>Max positions <input type="number" name="TARGET_POSITIONS" min="1" max="15" value="{{ S.TARGET_POSITIONS }}"></label>
-      <label>Max weight per name <input type="number" step="0.01" name="MAX_WEIGHT" value="{{ S.MAX_WEIGHT }}"></label>
-      <label>Turnover cap (0..1) <input type="number" step="0.01" name="TURNOVER_LIMIT" value="{{ S.TURNOVER_LIMIT }}"></label>
-      <label>Min order notional ($) <input type="number" step="1" name="MIN_ORDER_NOTIONAL" value="{{ S.MIN_ORDER_NOTIONAL }}"></label>
-      <label>Cash buffer (0..1) <input type="number" step="0.01" name="PORTFOLIO_CASH_BUFFER" value="{{ S.PORTFOLIO_CASH_BUFFER }}"></label>
+      <label>Enabled <input type="checkbox" name="ENABLED" {% if S.ENABLED %}checked{% endif %}><br><small>Global kill switch; when off, scheduled/manual runs skip safely</small></label>
+      <label>Max positions <input type="number" name="TARGET_POSITIONS" min="1" max="15" value="{{ S.TARGET_POSITIONS }}"><br><small>Maximum number of simultaneous holdings the bot can own</small></label>
+      <label>Max weight per name <input type="number" step="0.01" name="MAX_WEIGHT" value="{{ S.MAX_WEIGHT }}"><br><small>Per‑asset cap as a fraction of equity (e.g., 0.2 = 20%)</small></label>
+      <label>Turnover cap (0..1) <input type="number" step="0.01" name="TURNOVER_LIMIT" value="{{ S.TURNOVER_LIMIT }}"><br><small>If dollars to be traded exceed this fraction of equity, rebalance is skipped (anti‑churn)</small></label>
+      <label>Min order notional ($) <input type="number" step="1" name="MIN_ORDER_NOTIONAL" value="{{ S.MIN_ORDER_NOTIONAL }}"><br><small>Ignore target changes smaller than this dollar amount (avoids "dust" orders)</small></label>
+      <label>Cash buffer (0..1) <input type="number" step="0.01" name="PORTFOLIO_CASH_BUFFER" value="{{ S.PORTFOLIO_CASH_BUFFER }}"><br><small>Portion of equity to hold in cash (e.g., 0.10 = 10% kept in cash)</small></label>
     </div>
     <p class="muted">“Enabled” is a global kill‑switch. Turnover cap limits total portfolio reshuffle on any run.</p>
   </article>
@@ -18,22 +18,22 @@
   <article>
     <header>Timing</header>
     <div class="grid">
-      <label>Windows (ET, comma‑sep) <input type="text" name="WINDOWS_ET" value="{{ S.WINDOWS_ET }}"></label>
-      <label>Avoid near bell (min) <input type="number" name="AVOID_NEAR_OPEN_CLOSE_MIN" value="{{ S.AVOID_NEAR_OPEN_CLOSE_MIN }}"></label>
-      <label>Universe mode <input type="text" name="UNIVERSE_MODE" value="{{ S.UNIVERSE_MODE }}"></label>
+      <label>Windows (ET, comma‑sep) <input type="text" name="WINDOWS_ET" value="{{ S.WINDOWS_ET }}"><br><small>Exact times (America/New_York) when runs are allowed (e.g., 10:05,14:35)</small></label>
+      <label>Avoid near bell (min) <input type="number" name="AVOID_NEAR_OPEN_CLOSE_MIN" value="{{ S.AVOID_NEAR_OPEN_CLOSE_MIN }}"><br><small>Skip if within this many minutes of market close (reduces slippage/spikes)</small></label>
+      <label>Universe mode <input type="text" name="UNIVERSE_MODE" value="{{ S.UNIVERSE_MODE }}"><br><small>Which symbols are eligible: sp500_etfs = S&P 500 + large ETFs; etfs_only = ETFs only</small></label>
     </div>
   </article>
 
   <article>
     <header>Real‑time & Events</header>
     <div class="grid">
-      <label>Use intraday sizing <input type="checkbox" name="USE_INTRADAY" {% if S.USE_INTRADAY %}checked{% endif %}></label>
-      <label>Earnings gating <input type="checkbox" name="EARNINGS_GATING" {% if S.EARNINGS_GATING %}checked{% endif %}></label>
-      <label>Days before earnings <input type="number" name="EARNINGS_DAYS_BEFORE" value="{{ S.EARNINGS_DAYS_BEFORE }}"></label>
-      <label>Days after earnings <input type="number" name="EARNINGS_DAYS_AFTER" value="{{ S.EARNINGS_DAYS_AFTER }}"></label>
-      <label>Earnings provider <input type="text" name="EARNINGS_PROVIDER" value="{{ S.EARNINGS_PROVIDER }}"></label>
-      <label>Earnings API key <input type="text" name="EARNINGS_API_KEY" value="{{ S.EARNINGS_API_KEY }}"></label>
-      <label>Macro dates (YYYY‑MM‑DD, comma‑sep) <input type="text" name="MACRO_DATES" value="{{ S.MACRO_DATES }}"></label>
+      <label>Use intraday sizing <input type="checkbox" name="USE_INTRADAY" {% if S.USE_INTRADAY %}checked{% endif %}><br><small>Size orders with up‑to‑minute minute‑bar prices; signals remain daily</small></label>
+      <label>Earnings gating <input type="checkbox" name="EARNINGS_GATING" {% if S.EARNINGS_GATING %}checked{% endif %}><br><small>Block new entries near earnings (exits/trims still allowed); requires provider + API key</small></label>
+      <label>Days before earnings <input type="number" name="EARNINGS_DAYS_BEFORE" value="{{ S.EARNINGS_DAYS_BEFORE }}"><br><small>How many days before an earnings date new entries are blocked</small></label>
+      <label>Days after earnings <input type="number" name="EARNINGS_DAYS_AFTER" value="{{ S.EARNINGS_DAYS_AFTER }}"><br><small>How many days after an earnings date new entries are blocked</small></label>
+      <label>Earnings provider <input type="text" name="EARNINGS_PROVIDER" value="{{ S.EARNINGS_PROVIDER }}"><br><small>ID/name your calendar module will use (e.g., "polygon", "finnhub"); leave blank to disable</small></label>
+      <label>Earnings API key <input type="text" name="EARNINGS_API_KEY" value="{{ S.EARNINGS_API_KEY }}"><br><small>Key for that provider; if blank, gating is automatically skipped</small></label>
+      <label>Macro dates (YYYY‑MM‑DD, comma‑sep) <input type="text" name="MACRO_DATES" value="{{ S.MACRO_DATES }}"><br><small>Dates to skip entire runs (e.g., big FOMC/CPI/NFP days)</small></label>
     </div>
     <p class="muted">If you don’t set provider/API, earnings gating is skipped.</p>
   </article>
@@ -41,10 +41,10 @@
   <article>
     <header>Risk & Weighting</header>
     <div class="grid">
-      <label>Regime filter <input type="checkbox" name="REGIME_FILTER" {% if S.REGIME_FILTER %}checked{% endif %}></label>
-      <label>Risk‑off scalar (0..1) <input type="number" step="0.01" name="RISK_OFF_SCALAR" value="{{ S.RISK_OFF_SCALAR }}"></label>
-      <label>Weighting post‑process <input type="text" name="WEIGHTING_POSTPROCESS" value="{{ S.WEIGHTING_POSTPROCESS }}"></label>
-      <label>AI weight (0..1) <input type="number" step="0.01" name="AI_WEIGHT" value="{{ S.AI_WEIGHT }}"></label>
+      <label>Regime filter <input type="checkbox" name="REGIME_FILTER" {% if S.REGIME_FILTER %}checked{% endif %}><br><small>When market breadth is weak or SPY's short‑term trend is below medium‑term, reduce exposure</small></label>
+      <label>Risk‑off scalar (0..1) <input type="number" step="0.01" name="RISK_OFF_SCALAR" value="{{ S.RISK_OFF_SCALAR }}"><br><small>Fraction of equity to invest in "risk‑off" mode (0.6 = 60% invested, 40% sidelined)</small></label>
+      <label>Weighting post‑process <input type="text" name="WEIGHTING_POSTPROCESS" value="{{ S.WEIGHTING_POSTPROCESS }}"><br><small>How to adjust GPT's picks: vol_target tilts toward higher score/lower‑vol names; none uses GPT weights only</small></label>
+      <label>AI weight (0..1) <input type="number" step="0.01" name="AI_WEIGHT" value="{{ S.AI_WEIGHT }}"><br><small>Blend between GPT's suggested weights and risk weights (1.0 = all GPT, 0.0 = all risk model)</small></label>
     </div>
     <p class="muted">Final weights blend GPT’s proposal with risk‑aware weights (score/vol). AI weight controls that blend.</p>
   </article>

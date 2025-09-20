@@ -1,0 +1,24 @@
+Core
+Enabled — Global kill switch; when off, scheduled/manual runs skip safely.
+Max positions — Maximum number of simultaneous holdings the bot can own.
+Max weight per name — Per‑asset cap as a fraction of equity (e.g., 0.2 = 20%).
+Turnover cap (0..1) — If the dollars to be traded this run exceed this fraction of total equity, the rebalance is skipped (anti‑churn).
+Min order notional ($) — Ignore target changes smaller than this dollar amount (avoids “dust” orders).
+Cash buffer (0..1) — Portion of equity to hold in cash (e.g., 0.10 = 10% kept in cash).
+Timing
+Windows (ET, comma‑sep) — Exact times (America/New_York) when runs are allowed (e.g., 10:05,14:35).
+Avoid near bell (min) — Skip if within this many minutes of market close (reduces slippage/spikes).
+Universe mode — Which symbols are eligible: sp500_etfs = S&P 500 + large ETFs; etfs_only = ETFs only.
+Real‑time & Events
+Use intraday sizing — Size orders with up‑to‑minute minute‑bar prices; signals remain daily.
+Earnings gating — Block new entries near earnings (exits/trims still allowed); requires provider + API key.
+Days before earnings — How many days before an earnings date new entries are blocked.
+Days after earnings — How many days after an earnings date new entries are blocked.
+Earnings provider — ID/name your calendar module will use (e.g., “polygon”, “finnhub”); leave blank to disable.
+Earnings API key — Key for that provider; if blank, gating is automatically skipped.
+Macro dates (YYYY‑MM‑DD, comma‑sep) — Dates to skip entire runs (e.g., big FOMC/CPI/NFP days).
+Risk & Weighting
+Regime filter — When market breadth is weak or SPY’s short‑term trend is below medium‑term, reduce exposure.
+Risk‑off scalar (0..1) — Fraction of equity to invest in “risk‑off” mode (0.6 = 60% invested, 40% sidelined).
+Weighting post‑process — How to adjust GPT’s picks: vol_target tilts toward higher score/lower‑vol names; none uses GPT weights only (still capped/normalized).
+AI weight (0..1) — Blend between GPT’s suggested weights and risk weights (1.0 = all GPT, 0.0 = all risk model).
