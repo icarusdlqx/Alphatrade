@@ -114,7 +114,7 @@ def main():
     top = feats.head(50).copy()
     panel = top[["symbol","score","ret21","ret63","vol20_annual","trend","last","qual126"]].to_dict(orient="records")
     memctx = build_memory_context(5)
-    rsp = choose_portfolio(json.dumps(panel), int(S["TARGET_POSITIONS"]), float(S["MAX_WEIGHT"]), model=os.getenv("MODEL_NAME","gpt-5-pro"), memory_context=memctx)
+    rsp = choose_portfolio(json.dumps(panel), int(S["TARGET_POSITIONS"]), float(S["MAX_WEIGHT"]), model=S.get("MODEL_NAME", "gpt-5"), memory_context=memctx)
 
     # Earnings gating (only if configured)
     if S["EARNINGS_GATING"] and S.get("EARNINGS_PROVIDER") and S.get("EARNINGS_API_KEY") and rsp.get("picks"):

@@ -22,7 +22,7 @@ DEFAULTS = {
     "WEIGHTING_POSTPROCESS": os.getenv("WEIGHTING_POSTPROCESS", "vol_target"),
     "AI_WEIGHT": float(os.getenv("AI_WEIGHT", "0.5")),
     "ENABLED": os.getenv("ENABLED", "true").lower() == "true",
-    "MODEL_NAME": os.getenv("MODEL_NAME", "gpt-5-pro"),
+    "MODEL_NAME": os.getenv("MODEL_NAME", "gpt-5"),
     "APCA_BASE_URL": os.getenv("APCA_BASE_URL", "https://paper-api.alpaca.markets"),
     "DRY_RUN": os.getenv("DRY_RUN", "false").lower() == "true",
 }

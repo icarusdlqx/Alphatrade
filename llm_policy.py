@@ -28,7 +28,7 @@ Return concise rationales.
 
 def choose_portfolio(candidates_json: str, target_positions: int, max_weight: float, model: str = None, memory_context: str = "") -> Dict:
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-    model = model or os.getenv("MODEL_NAME", "gpt-5-pro")
+    model = model or os.getenv("MODEL_NAME", "gpt-5")
 
     schema = {
         "name": "PolicyResponse",
