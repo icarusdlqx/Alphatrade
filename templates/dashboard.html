@@ -1,35 +1,70 @@
 {% extends "base.html" %}
 {% block content %}
 <section>
-  <h4>System Status</h4>
+  <h4>🔧 API Services</h4>
   <div class="grid">
     <article>
-      <strong><span class="status-dot {{ 'green' if ok_alpaca else 'red' }}"></span>Alpaca</strong>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <strong style="display: flex; align-items: center;"><span class="status-dot {{ 'green' if ok_alpaca else 'red' }}"></span>Alpaca Trading</strong>
+        <span class="badge">{{ 'Connected' if ok_alpaca else 'Disconnected' }}</span>
+      </div>
       <p class="muted">{{ alpaca_msg }}</p>
     </article>
     <article>
-      <strong><span class="status-dot {{ 'green' if ok_openai else 'red' }}"></span>OpenAI</strong>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <strong style="display: flex; align-items: center;"><span class="status-dot {{ 'green' if ok_openai else 'red' }}"></span>OpenAI API</strong>
+        <span class="badge">{{ 'Connected' if ok_openai else 'Disconnected' }}</span>
+      </div>
       <p class="muted">{{ openai_msg }}</p>
     </article>
   </div>
 </section>
 
 <section>
-  <h4>Trading Controls</h4>
-  <form method="post" action="{{ url_for('run_now') }}">
-    <button>Run Analysis Now</button>
-  </form>
-  <p class="muted">Last Analysis: <span class="badge">{{ last_run }}</span> &nbsp; Next Window: <span class="badge">{{ next_run }}</span></p>
+  <h4>📊 Trading Controls</h4>
+  <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; border: 1px solid #e9ecef;">
+    <div style="margin-bottom: 16px;">
+      <form method="post" action="{{ url_for('run_now') }}" style="display: inline-block;">
+        <button type="submit" style="{{ 'background: #28a745;' if system_active else 'background: #6c757d; cursor: not-allowed;' }}" {{ 'disabled' if not system_active else '' }}>▶️ Run Analysis Now</button>
+      </form>
+      {% if not system_active %}
+        <p style="color: #dc3545; font-size: 0.9em; margin: 8px 0 0 0;">System must be active to run analysis</p>
+      {% endif %}
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+      <div>
+        <strong style="color: #495057; font-size: 0.9em;">Last Analysis</strong>
+        <div class="badge" style="display: block; margin-top: 4px;">{{ last_run }}</div>
+      </div>
+      <div>
+        <strong style="color: #495057; font-size: 0.9em;">Next Window</strong>
+        <div class="badge" style="display: block; margin-top: 4px;">{{ next_run }}</div>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section>
-  <h4>Configuration Summary</h4>
-  <ul>
-    <li>Enabled: <strong>{{ 'On' if settings.ENABLED else 'Off' }}</strong></li>
-    <li>Windows (ET): <code>{{ settings.WINDOWS_ET }}</code>, Near‑bell buffer: {{ settings.AVOID_NEAR_OPEN_CLOSE_MIN }} min</li>
-    <li>Max positions: {{ settings.TARGET_POSITIONS }}, Max weight: {{ (settings.MAX_WEIGHT*100)|round(0) }}%</li>
-    <li>Turnover cap: {{ (settings.TURNOVER_LIMIT*100)|round(0) }}%, Min order: ${{ settings.MIN_ORDER_NOTIONAL }}</li>
-    <li>Risk regime: {{ 'On' if settings.REGIME_FILTER else 'Off' }} (risk‑off scalar {{ (settings.RISK_OFF_SCALAR*100)|round(0) }}%)</li>
-  </ul>
+  <h4>⚙️ Configuration Summary</h4>
+  <div class="grid">
+    <article>
+      <h5 style="margin-bottom: 12px; color: #495057;">Trading Settings</h5>
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        <li style="margin-bottom: 8px;"><strong>Status:</strong> <span class="badge" style="{{ 'background: #d4edda; color: #155724;' if settings.ENABLED else 'background: #f8d7da; color: #721c24;' }}">{{ 'Enabled' if settings.ENABLED else 'Disabled' }}</span></li>
+        <li style="margin-bottom: 8px;"><strong>Max Positions:</strong> {{ settings.TARGET_POSITIONS }}</li>
+        <li style="margin-bottom: 8px;"><strong>Max Weight:</strong> {{ (settings.MAX_WEIGHT*100)|round(0) }}%</li>
+        <li style="margin-bottom: 8px;"><strong>Min Order:</strong> ${{ settings.MIN_ORDER_NOTIONAL }}</li>
+      </ul>
+    </article>
+    <article>
+      <h5 style="margin-bottom: 12px; color: #495057;">Schedule & Risk</h5>
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        <li style="margin-bottom: 8px;"><strong>Windows (ET):</strong> <code style="background: #e9ecef; padding: 2px 6px; border-radius: 4px;">{{ settings.WINDOWS_ET }}</code></li>
+        <li style="margin-bottom: 8px;"><strong>Buffer:</strong> {{ settings.AVOID_NEAR_OPEN_CLOSE_MIN }} min</li>
+        <li style="margin-bottom: 8px;"><strong>Turnover Cap:</strong> {{ (settings.TURNOVER_LIMIT*100)|round(0) }}%</li>
+        <li style="margin-bottom: 8px;"><strong>Risk Filter:</strong> <span class="badge" style="{{ 'background: #d4edda; color: #155724;' if settings.REGIME_FILTER else 'background: #f8d7da; color: #721c24;' }}">{{ 'On' if settings.REGIME_FILTER else 'Off' }}</span></li>
+      </ul>
+    </article>
+  </div>
 </section>
 {% endblock %}

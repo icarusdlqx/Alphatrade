@@ -16,7 +16,7 @@ A twice‑daily GPT‑5 Pro + Alpaca trader with a simple web dashboard.
    - `APP_PASSWORD` (login password)
    - `APP_SECRET_KEY` (any random string for Flask sessions)
    - `OPENAI_API_KEY`
-   - `APCA_API_KEY_ID`, `APCA_API_SECRET_KEY`
+   - `ALPACA_API_KEY_V3`, `ALPACA_SECRET_KEY_V3`
    - `APCA_BASE_URL` = `https://paper-api.alpaca.markets` (paper first)
    - `DB_URL` (Replit: Tools → Database → copy connection string)
 

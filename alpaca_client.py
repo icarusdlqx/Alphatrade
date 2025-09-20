@@ -10,8 +10,8 @@ from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 
-APCA_KEY = os.environ.get("APCA_API_KEY_ID", "")
-APCA_SEC = os.environ.get("APCA_API_SECRET_KEY", "")
+APCA_KEY = os.environ.get("ALPACA_API_KEY_V3", "")
+APCA_SEC = os.environ.get("ALPACA_SECRET_KEY_V3", "")
 APCA_BASE_URL = os.getenv("APCA_BASE_URL", "https://paper-api.alpaca.markets")
 
 def _trading_client():

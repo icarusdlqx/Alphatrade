@@ -26,8 +26,8 @@ The following secrets need to be set in Replit:
 - `APP_PASSWORD`: Login password for the web interface
 - `APP_SECRET_KEY`: Random string for Flask session security
 - `OPENAI_API_KEY`: OpenAI API key for AI analysis
-- `APCA_API_KEY_ID`: Alpaca API key ID
-- `APCA_API_SECRET_KEY`: Alpaca API secret key
+- `ALPACA_API_KEY_V3`: Alpaca API key ID
+- `ALPACA_SECRET_KEY_V3`: Alpaca API secret key
 - `APCA_BASE_URL`: Set to `https://paper-api.alpaca.markets` for paper trading
 
 ### Database

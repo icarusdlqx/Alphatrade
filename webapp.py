@@ -76,6 +76,34 @@ def next_windows_text(S: Dict[str,Any]) -> str:
     except Exception:
         return "—"
 
+def get_system_status():
+    """Get overall system status for use across all templates"""
+    try:
+        S = get_settings()
+        ok_alpaca, alpaca_msg = check_alpaca()
+        ok_openai, openai_msg = check_openai()
+        system_active = ok_alpaca and ok_openai and S.get("ENABLED", False)
+        return {
+            'system_active': system_active,
+            'ok_alpaca': ok_alpaca,
+            'ok_openai': ok_openai,
+            'alpaca_msg': alpaca_msg,
+            'openai_msg': openai_msg
+        }
+    except Exception:
+        return {
+            'system_active': False,
+            'ok_alpaca': False,
+            'ok_openai': False,
+            'alpaca_msg': 'Error checking status',
+            'openai_msg': 'Error checking status'
+        }
+
+@app.context_processor
+def inject_system_status():
+    """Make system status available to all templates"""
+    return get_system_status()
+
 # ---------- pages ----------
 @app.route("/")
 def root():
@@ -90,18 +118,20 @@ def dashboard():
     except Exception: pass
 
     S = get_settings()
-    ok_alpaca, alpaca_msg = check_alpaca()
-    ok_openai, openai_msg = check_openai()
     last_eps = recent_episodes(1)
     last_run = last_eps[0]["asof"].strftime("%Y-%m-%d %H:%M ET") if last_eps else "—"
     return render_template("dashboard.html",
                            app_name="AlphaTrade V3",
-                           ok_alpaca=ok_alpaca, alpaca_msg=alpaca_msg,
-                           ok_openai=ok_openai, openai_msg=openai_msg,
                            settings=S, last_run=last_run, next_run=next_windows_text(S))
 
 @app.route("/run", methods=["POST"])
 def run_now():
+    # Check system status before allowing run
+    status = get_system_status()
+    if not status['system_active']:
+        flash("Cannot run analysis: System is offline. Check API connections and enable trading in settings.", "error")
+        return redirect(url_for("dashboard"))
+    
     run_trader()
     flash("Triggered analysis & rebalance. Check Trading History in a moment.", "info")
     return redirect(url_for("dashboard"))
