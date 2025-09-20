@@ -175,7 +175,17 @@ def settings():
             elif key in {"TARGET_POSITIONS","AVOID_NEAR_OPEN_CLOSE_MIN","EARNINGS_DAYS_BEFORE","EARNINGS_DAYS_AFTER"}:
                 payload[key] = int(v) if v else 0
             elif key in {"MAX_WEIGHT","TURNOVER_LIMIT","MIN_ORDER_NOTIONAL","PORTFOLIO_CASH_BUFFER","RISK_OFF_SCALAR","AI_WEIGHT"}:
-                payload[key] = float(v) if v else 0.0
+                if v:
+                    try:
+                        val = float(v)
+                        if not (val != val or val == float('inf') or val == float('-inf')):  # Check for NaN and Infinity
+                            payload[key] = val
+                        else:
+                            payload[key] = 0.0
+                    except ValueError:
+                        payload[key] = 0.0
+                else:
+                    payload[key] = 0.0
             else:
                 payload[key] = v
         set_settings(payload)
