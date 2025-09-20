@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h4>Positions</h4>
+<p class="muted">Status: {{ 'Connected' if ok else 'Error' }} — {{ status_msg }}</p>
+<table role="grid">
+  <thead><tr><th>Symbol</th><th>Qty</th><th>Market Value</th><th>Avg Entry</th><th>Unrealized P&L</th></tr></thead>
+  <tbody>
+  {% for sym, p in positions.items() %}
+    <tr>
+      <td>{{ sym }}</td>
+      <td>{{ '%.4f'|format(p.qty) }}</td>
+      <td>${{ '%.2f'|format(p.market_value) }}</td>
+      <td>${{ '%.2f'|format(p.avg_entry_price) }}</td>
+      <td>${{ '%.2f'|format(p.unrealized_pl) }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5">No open positions.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

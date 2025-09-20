@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h4>Trading History</h4>
+<table role="grid">
+  <thead><tr><th>Time</th><th>Order ID</th><th>Symbol</th><th>Side</th><th>Notional</th><th>Qty</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ r.submitted_at or '' }}</td>
+      <td>{{ r.alpaca_order_id }}</td>
+      <td>{{ r.symbol }}</td>
+      <td>{{ r.side }}</td>
+      <td>{{ r.notional if r.notional is not none else '' }}</td>
+      <td>{{ r.qty if r.qty is not none else '' }}</td>
+      <td>{{ r.status }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7">No orders logged yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

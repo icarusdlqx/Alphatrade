@@ -1,0 +1,10 @@
+flask>=3.0.0
+alpaca-py>=0.21.0
+pandas>=2.2.0
+numpy>=1.26.0
+pydantic>=2.6.0
+pytz
+openai>=1.50.0
+python-dateutil
+psycopg[binary]>=3.1
+gunicorn>=21.2.0

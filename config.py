@@ -1,0 +1,28 @@
+import os
+
+# Defaults; can be overridden by DB settings at runtime
+DEFAULTS = {
+    "TARGET_POSITIONS": int(os.getenv("TARGET_POSITIONS", "10")),
+    "MAX_WEIGHT": float(os.getenv("MAX_WEIGHT", "0.20")),
+    "TURNOVER_LIMIT": float(os.getenv("TURNOVER_LIMIT", "0.35")),
+    "MIN_ORDER_NOTIONAL": float(os.getenv("MIN_ORDER_NOTIONAL", "25")),
+    "PORTFOLIO_CASH_BUFFER": float(os.getenv("PORTFOLIO_CASH_BUFFER", "0.00")),
+    "WINDOWS_ET": os.getenv("WINDOWS_ET", "10:05,14:35"),
+    "AVOID_NEAR_OPEN_CLOSE_MIN": int(os.getenv("AVOID_NEAR_OPEN_CLOSE_MIN", "10")),
+    "UNIVERSE_MODE": os.getenv("UNIVERSE_MODE", "sp500_etfs"),
+    "USE_INTRADAY": os.getenv("USE_INTRADAY", "true").lower() == "true",
+    "EARNINGS_GATING": os.getenv("EARNINGS_GATING", "true").lower() == "true",
+    "EARNINGS_DAYS_BEFORE": int(os.getenv("EARNINGS_DAYS_BEFORE", "1")),
+    "EARNINGS_DAYS_AFTER": int(os.getenv("EARNINGS_DAYS_AFTER", "1")),
+    "EARNINGS_PROVIDER": os.getenv("EARNINGS_PROVIDER", ""),
+    "EARNINGS_API_KEY": os.getenv("EARNINGS_API_KEY", ""),
+    "MACRO_DATES": os.getenv("MACRO_DATES", ""),  # "YYYY-MM-DD,YYYY-MM-DD"
+    "REGIME_FILTER": os.getenv("REGIME_FILTER", "true").lower() == "true",
+    "RISK_OFF_SCALAR": float(os.getenv("RISK_OFF_SCALAR", "0.60")),
+    "WEIGHTING_POSTPROCESS": os.getenv("WEIGHTING_POSTPROCESS", "vol_target"),
+    "AI_WEIGHT": float(os.getenv("AI_WEIGHT", "0.5")),
+    "ENABLED": os.getenv("ENABLED", "true").lower() == "true",
+    "MODEL_NAME": os.getenv("MODEL_NAME", "gpt-5-pro"),
+    "APCA_BASE_URL": os.getenv("APCA_BASE_URL", "https://paper-api.alpaca.markets"),
+    "DRY_RUN": os.getenv("DRY_RUN", "false").lower() == "true",
+}

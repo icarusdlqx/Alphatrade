@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <h4>System Status</h4>
+  <div class="grid">
+    <article>
+      <strong><span class="status-dot {{ 'green' if ok_alpaca else 'red' }}"></span>Alpaca</strong>
+      <p class="muted">{{ alpaca_msg }}</p>
+    </article>
+    <article>
+      <strong><span class="status-dot {{ 'green' if ok_openai else 'red' }}"></span>OpenAI</strong>
+      <p class="muted">{{ openai_msg }}</p>
+    </article>
+  </div>
+</section>
+
+<section>
+  <h4>Trading Controls</h4>
+  <form method="post" action="{{ url_for('run_now') }}">
+    <button>Run Analysis Now</button>
+  </form>
+  <p class="muted">Last Analysis: <span class="badge">{{ last_run }}</span> &nbsp; Next Window: <span class="badge">{{ next_run }}</span></p>
+</section>
+
+<section>
+  <h4>Configuration Summary</h4>
+  <ul>
+    <li>Enabled: <strong>{{ 'On' if settings.ENABLED else 'Off' }}</strong></li>
+    <li>Windows (ET): <code>{{ settings.WINDOWS_ET }}</code>, Near‑bell buffer: {{ settings.AVOID_NEAR_OPEN_CLOSE_MIN }} min</li>
+    <li>Max positions: {{ settings.TARGET_POSITIONS }}, Max weight: {{ (settings.MAX_WEIGHT*100)|round(0) }}%</li>
+    <li>Turnover cap: {{ (settings.TURNOVER_LIMIT*100)|round(0) }}%, Min order: ${{ settings.MIN_ORDER_NOTIONAL }}</li>
+    <li>Risk regime: {{ 'On' if settings.REGIME_FILTER else 'Off' }} (risk‑off scalar {{ (settings.RISK_OFF_SCALAR*100)|round(0) }}%)</li>
+  </ul>
+</section>
+{% endblock %}
