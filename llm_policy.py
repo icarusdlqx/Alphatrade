@@ -55,28 +55,31 @@ def choose_portfolio(candidates_json: str, target_positions: int, max_weight: fl
                 "notes": {"type": "string"},
                 "confidence": {"type": "number", "minimum": 0, "maximum": 1}
             },
-            "required": ["asof", "picks"]
+            "required": ["asof", "picks", "notes", "confidence"],
+            "additionalProperties": False
         },
         "strict": True
     }
 
-    resp = client.responses.create(
+    # Build messages for chat completion
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": "Memory context (recap of recent episodes):\n" + (memory_context or "None")},
+        {"role": "user", "content": "Candidate panel (JSON):\n" + candidates_json},
+        {"role": "user", "content": f"Return <= {target_positions} symbols; cap {max_weight:.2f} each; total weight <= 1.0. Favor durable trends; keep turnover low."}
+    ]
+    
+    # Use the correct OpenAI API call
+    resp = client.chat.completions.create(
         model=model,
-        reasoning={"effort": effort},  # <-- control GPT-5 reasoning effort
-        input=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": "Memory context (recap of recent episodes):\n" + (memory_context or "None")},
-            {"role": "user", "content": "Candidate panel (JSON):\n" + candidates_json},
-            {"role": "user", "content": f"Return <= {target_positions} symbols; cap {max_weight:.2f} each; total weight <= 1.0. Favor durable trends; keep turnover low."}
-        ],
-        response_format={"type":"json_schema", "json_schema": schema},
-        temperature=0.2
+        messages=messages,
+        response_format={"type":"json_schema", "json_schema": schema}
     )
 
     try:
-        content = resp.output[0].content[0].text
+        content = resp.choices[0].message.content
     except Exception:
-        content = getattr(resp, "output_text", None) or "{}"
+        content = "{}"
 
     try:
         parsed = PolicyResponse.model_validate_json(content)
