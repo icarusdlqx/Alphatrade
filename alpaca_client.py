@@ -13,6 +13,7 @@ from alpaca.data.timeframe import TimeFrame
 ALPACA_API_KEY_V3 = os.environ.get("ALPACA_API_KEY_V3") or os.environ.get("APCA_API_KEY_ID", "")
 ALPACA_SECRET_KEY_V3 = os.environ.get("ALPACA_SECRET_KEY_V3") or os.environ.get("APCA_API_SECRET_KEY", "")
 APCA_BASE_URL = os.getenv("APCA_BASE_URL", "https://paper-api.alpaca.markets")
+ALPACA_DATA_FEED = os.getenv("ALPACA_DATA_FEED", "iex")
 
 def _trading_client():
     if not ALPACA_API_KEY_V3 or not ALPACA_SECRET_KEY_V3:
@@ -73,7 +74,7 @@ def get_bars(symbols: List[str], days: int = 250) -> pd.DataFrame:
     batch = 100
     for i in range(0, len(symbols), batch):
         syms = symbols[i:i+batch]
-        req = StockBarsRequest(symbol_or_symbols=syms, timeframe=TimeFrame.Day, start=start, end=end, limit=days)
+        req = StockBarsRequest(symbol_or_symbols=syms, timeframe=TimeFrame.Day, start=start, end=end, limit=days, feed=ALPACA_DATA_FEED)
         df = data.get_stock_bars(req).df
         if df is None or df.empty: 
             continue
@@ -94,7 +95,7 @@ def get_intraday_last_prices(symbols, minutes: int = 20) -> dict:
         return {}
     end = dt.datetime.now(pytz.UTC)
     start = end - dt.timedelta(minutes=minutes)
-    req = StockBarsRequest(symbol_or_symbols=list(symbols), timeframe=TimeFrame.Minute, start=start, end=end, limit=1)
+    req = StockBarsRequest(symbol_or_symbols=list(symbols), timeframe=TimeFrame.Minute, start=start, end=end, limit=1, feed=ALPACA_DATA_FEED)
     df = data.get_stock_bars(req).df
     out = {}
     if df is None or df.empty:
