@@ -80,12 +80,20 @@ def main(manual_trigger: bool = False):
             insert_log("SKIP", "outside_window", {"now": now.isoformat(), "trigger": "scheduled"}); return
 
     acct = get_account()
-    equity = float(acct.portfolio_value); cash = float(acct.cash)
-    insert_log("INFO", "account_snapshot", {"equity": equity, "cash": cash})
+    portfolio_val = float(acct.portfolio_value); cash = float(acct.cash)
+    # Equity is the value of stocks/positions (portfolio_value includes cash + stocks)
+    equity = portfolio_val - cash
+    insert_log("INFO", "account_snapshot", {"equity": equity, "cash": cash, "portfolio_total": portfolio_val})
 
     positions = get_positions()
     universe = load_universe(S["UNIVERSE_MODE"])
-    bars = get_bars(universe, days=250)
+    
+    try:
+        bars = get_bars(universe, days=250)
+    except Exception as e:
+        error_msg = str(e)
+        insert_log("ERROR", "data_fetch_failed", {"error": error_msg}); return
+        
     if bars.empty:
         insert_log("ERROR", "no_bars", {}); return
 

@@ -75,13 +75,18 @@
         'order_failed': 'Order Failed',
         'rebalance_complete': 'Portfolio Rebalanced',
         'no_bars': 'No Market Data Available',
-        'db_init_failed': 'Database Error'
+        'db_init_failed': 'Database Error',
+        'data_fetch_failed': 'Market Data Error'
       } %}
       {% set event_text = event_map.get(r.event, r.event.replace('_', ' ').title()) %}
       
       {% if r.parsed_detail %}
         {% if r.event == 'account_snapshot' %}
-          {% set detail_text = 'Equity: $' + '{:,.0f}'.format(r.parsed_detail.equity|float) + ', Cash: $' + '{:,.0f}'.format(r.parsed_detail.cash|float) %}
+          {% if r.parsed_detail.get('portfolio_total') %}
+            {% set detail_text = 'Equity: $' + '{:,.0f}'.format(r.parsed_detail.equity|float) + ', Cash: $' + '{:,.0f}'.format(r.parsed_detail.cash|float) %}
+          {% else %}
+            {% set detail_text = 'Equity: $' + '{:,.0f}'.format(r.parsed_detail.equity|float) + ', Cash: $' + '{:,.0f}'.format(r.parsed_detail.cash|float) %}
+          {% endif %}
         {% elif r.event == 'regime' %}
           {% set detail_text = 'Market Breadth: ' + (r.parsed_detail.breadth * 100)|round(1)|string + '%, SPY Trend: ' + (r.parsed_detail.spy_trend * 100)|round(1)|string + '%, Risk Scalar: ' + (r.parsed_detail.scalar * 100)|round(0)|string + '%' %}
         {% elif r.event == 'picks_model' %}
@@ -96,6 +101,8 @@
           {% set detail_text = 'Filtered ' + r.parsed_detail.filtered|string + ' stocks near earnings' %}
         {% elif r.event == 'order_submitted' %}
           {% set detail_text = r.parsed_detail.symbol + ' - ' + r.parsed_detail.side.upper() + ' $' + '{:,.0f}'.format(r.parsed_detail.notional|float) %}
+        {% elif r.event == 'data_fetch_failed' %}
+          {% set detail_text = 'Alpaca data subscription issue: ' + (r.parsed_detail.error|string)[:100] + ('...' if r.parsed_detail.error|string|length > 100 else '') %}
         {% else %}
           {% set detail_text = r.parsed_detail | string %}
         {% endif %}
