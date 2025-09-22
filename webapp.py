@@ -12,6 +12,16 @@ from trader import main as run_trader
 app = Flask(__name__)
 app.secret_key = os.getenv("APP_SECRET_KEY","alphatrade-dev-secret")
 
+def to_et(dtobj):
+    """Safely convert a datetime object to Eastern Time"""
+    if not dtobj:
+        return None
+    ET = pytz.timezone("America/New_York")
+    if getattr(dtobj, 'tzinfo', None) is None:
+        # Assume naive datetime is UTC
+        dtobj = pytz.utc.localize(dtobj)
+    return dtobj.astimezone(ET)
+
 def startup_health_check():
     """Comprehensive startup health check to validate all critical components"""
     health_status = {"database": False, "secrets": False, "alpaca": False, "openai": False}
@@ -183,7 +193,12 @@ def dashboard():
     ok_alpaca, alpaca_msg = check_alpaca()
     ok_openai, openai_msg = check_openai()
     last_eps = recent_episodes(1)
-    last_run = last_eps[0]["asof"].strftime("%Y-%m-%d %H:%M ET") if last_eps else "—"
+    if last_eps:
+        # Convert UTC timestamp to Eastern Time for display
+        last_asof_et = to_et(last_eps[0]["asof"])
+        last_run = last_asof_et.strftime("%Y-%m-%d %H:%M ET") if last_asof_et else "—"
+    else:
+        last_run = "—"
     return render_template("dashboard.html",
                            app_name="AlphaTrade V3",
                            ok_alpaca=ok_alpaca, alpaca_msg=alpaca_msg,
@@ -207,7 +222,7 @@ def positions():
 def log():
     import json
     rows = fetch_logs(400)
-    # Parse JSON details for template
+    # Parse JSON details for template and convert timestamps to ET
     for row in rows:
         try:
             if isinstance(row['detail'], (dict, list)):
@@ -218,13 +233,18 @@ def log():
                 row['parsed_detail'] = {}
         except:
             row['parsed_detail'] = {}
+        
+        # Convert UTC timestamp to Eastern Time and pre-format for template
+        at_et = to_et(row['at'])
+        row['at_et_str'] = at_et.strftime('%m/%d %H:%M:%S ET') if at_et else '—'
     return render_template("log.html", app_name="AlphaTrade V3", rows=rows)
 
 @app.route("/performance")
 def performance():
     from memory import equity_series
     series = equity_series(500)
-    labels = [r["asof"].strftime("%Y-%m-%d %H:%M") for r in series]
+    # Convert UTC timestamps to Eastern Time for performance chart labels
+    labels = [to_et(r["asof"]).strftime("%Y-%m-%d %H:%M ET") if to_et(r["asof"]) else str(r["asof"]) for r in series]
     equity = [float(r["equity"]) for r in series]
     cash = [float(r["cash"]) for r in series]
     # Calculate total (equity + cash) for each data point

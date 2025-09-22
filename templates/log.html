@@ -104,7 +104,7 @@
       {% endif %}
       
       <tr class="level-{{ r.level }}">
-        <td class="log-date">{{ r.at.strftime('%m/%d %H:%M:%S') if r.at.strftime else r.at }}</td>
+        <td class="log-date">{{ r.at_et_str }}</td>
         <td class="log-event">{{ event_text }}</td>
         <td class="log-details">{{ detail_text }}</td>
       </tr>
