@@ -32,7 +32,7 @@ def get_settings() -> Dict[str, Any]:
                 d[r["key"]] = r["value"]
     except Exception:
         pass
-    for k in ["USE_INTRADAY","EARNINGS_GATING","REGIME_FILTER","ENABLED"]:
+    for k in ["USE_INTRADAY","EARNINGS_GATING","REGIME_FILTER","ENABLED","DRY_RUN"]:
         d[k] = bool(d.get(k))
     return d
 

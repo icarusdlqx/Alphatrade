@@ -1,16 +1,5 @@
-# AlphaTrade V3 (Log Edition)
-
-- Adds a unified **Log** page (replaces "Trading History").
-- Every run writes a **run log**: start, checks, skips (market closed / macro day / outside window / turnover), regime metrics, picks summary, and **trades** (highlighted).
-- Orders are still stored in the `orders` table; the Log page is a superset view.
-
-## Secrets
-APP_PASSWORD, APP_SECRET_KEY, OPENAI_API_KEY, ALPACA_API_KEY_V3, ALPACA_SECRET_KEY_V3, APCA_BASE_URL, DB_URL, [optional] DRY_RUN
-
-## Run
-```bash
-pip install -r requirements.txt
-gunicorn -w 1 -b 0.0.0.0:8000 webapp:app
-# trader (manual)
-python trader.py
-```
+# AlphaTrade V3 (Enhanced v5)
+- GPT‑5 Responses API with `reasoning={"effort":"medium"}` by default.
+- **Log** page: run starts, regime detail (with intraday SPY move), AI picks with rationales, orders (bold), and skip reasons.
+- **Settings**: clear labels, helper text, and new levers (Dry‑run, Model/Effort, Alpaca data feed IEX/SIP).
+- **Window tolerance** (±30 min default) + manual **Run Now** override.

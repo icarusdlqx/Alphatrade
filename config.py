@@ -1,5 +1,4 @@
 import os
-# Defaults; can be overridden by DB settings or env vars
 DEFAULTS = {
     "TARGET_POSITIONS": int(os.getenv("TARGET_POSITIONS", "10")),
     "MAX_WEIGHT": float(os.getenv("MAX_WEIGHT", "0.20")),
@@ -7,6 +6,7 @@ DEFAULTS = {
     "MIN_ORDER_NOTIONAL": float(os.getenv("MIN_ORDER_NOTIONAL", "25")),
     "PORTFOLIO_CASH_BUFFER": float(os.getenv("PORTFOLIO_CASH_BUFFER", "0.00")),
     "WINDOWS_ET": os.getenv("WINDOWS_ET", "10:05,14:35"),
+    "WINDOW_TOL_MIN": int(os.getenv("WINDOW_TOL_MIN", "30")),
     "AVOID_NEAR_OPEN_CLOSE_MIN": int(os.getenv("AVOID_NEAR_OPEN_CLOSE_MIN", "10")),
     "UNIVERSE_MODE": os.getenv("UNIVERSE_MODE", "sp500_etfs"),
     "USE_INTRADAY": os.getenv("USE_INTRADAY", "true").lower() == "true",
@@ -21,9 +21,9 @@ DEFAULTS = {
     "WEIGHTING_POSTPROCESS": os.getenv("WEIGHTING_POSTPROCESS", "vol_target"),
     "AI_WEIGHT": float(os.getenv("AI_WEIGHT", "0.5")),
     "ENABLED": os.getenv("ENABLED", "true").lower() == "true",
-    # --- OpenAI model defaults ---
     "MODEL_NAME": os.getenv("MODEL_NAME", "gpt-5"),
     "REASONING_EFFORT": os.getenv("REASONING_EFFORT", "medium"),
+    "ALPACA_DATA_FEED": os.getenv("ALPACA_DATA_FEED", "iex"),
     "APCA_BASE_URL": os.getenv("APCA_BASE_URL", "https://paper-api.alpaca.markets"),
     "DRY_RUN": os.getenv("DRY_RUN", "false").lower() == "true",
 }

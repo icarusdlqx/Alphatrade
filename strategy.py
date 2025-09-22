@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 import pandas as pd
 import numpy as np
@@ -11,7 +12,7 @@ def compute_features(df: pd.DataFrame) -> pd.DataFrame:
     feats = []
     for sym in symbols:
         s = df.xs(sym, level="symbol").sort_index()
-        px = s["close"].copy()
+        px = s["close"].astype(float).copy()
         if len(px) < 60:
             continue
         ret_21 = px.pct_change(21).iloc[-1]
@@ -20,7 +21,7 @@ def compute_features(df: pd.DataFrame) -> pd.DataFrame:
         maxdd = _max_drawdown(px)
         ma20 = px.rolling(20).mean().iloc[-1]
         ma50 = px.rolling(50).mean().iloc[-1]
-        trend = (ma20 - ma50) / ma50 if ma50 != 0 else 0.0
+        trend = (ma20 - ma50) / ma50 if ma50 not in (0, np.nan) else 0.0
 
         ret_126 = px.pct_change(126).iloc[-1] if len(px) >= 126 else np.nan
         vol_63 = px.pct_change().rolling(63).std().iloc[-1] * np.sqrt(252) if len(px) >= 63 else np.nan
