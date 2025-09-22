@@ -30,18 +30,30 @@ def within_time_window_et(now_utc: dt.datetime, windows_csv: str) -> bool:
     tstr = ny.strftime("%H:%M")
     return tstr in set(w.strip() for w in windows_csv.split(","))
 
+def within_market_hours_et(now_utc: dt.datetime) -> bool:
+    """Check if current time is within regular market hours (9:30 AM - 4:00 PM ET)"""
+    ny = now_utc.astimezone(pytz.timezone("America/New_York"))
+    hour = ny.hour
+    minute = ny.minute
+    # Market hours: 9:30 AM to 4:00 PM ET
+    start_time = 9.5  # 9:30 AM
+    end_time = 16.0   # 4:00 PM
+    current_time = hour + minute / 60.0
+    return start_time <= current_time <= end_time
+
 def window_tag(now_utc: dt.datetime) -> str:
     ny = now_utc.astimezone(pytz.timezone("America/New_York"))
     return "am" if ny.hour < 12 else "pm"
 
-def main():
+def main(manual_trigger: bool = False):
     try:
         init_db(); init_settings_table()
     except Exception as e:
         insert_log("ERROR", "db_init_failed", {"err": str(e)})
 
     S = get_settings()
-    insert_log("INFO", "run_start", {"enabled": S.get("ENABLED", True), "windows": S.get("WINDOWS_ET")})
+    trigger_type = "manual" if manual_trigger else "scheduled"
+    insert_log("INFO", "run_start", {"enabled": S.get("ENABLED", True), "windows": S.get("WINDOWS_ET"), "trigger": trigger_type})
 
     if not S.get("ENABLED", True):
         insert_log("SKIP", "disabled", {}); return
@@ -55,8 +67,15 @@ def main():
         insert_log("SKIP", "macro_day", {"date": ny_date}); return
 
     now = info["now"]
-    if not within_time_window_et(now, S["WINDOWS_ET"]):
-        insert_log("SKIP", "outside_window", {"now": now.isoformat()}); return
+    # Different time window logic for manual vs scheduled runs
+    if manual_trigger:
+        # For manual runs, allow trading during market hours
+        if not within_market_hours_et(now):
+            insert_log("SKIP", "outside_market_hours", {"now": now.isoformat(), "trigger": "manual"}); return
+    else:
+        # For scheduled runs, use exact time windows
+        if not within_time_window_et(now, S["WINDOWS_ET"]):
+            insert_log("SKIP", "outside_window", {"now": now.isoformat(), "trigger": "scheduled"}); return
 
     acct = get_account()
     equity = float(acct.portfolio_value); cash = float(acct.cash)

@@ -207,7 +207,7 @@ def dashboard():
 
 @app.route("/run", methods=["POST"])
 def run_now():
-    run_trader()
+    run_trader(manual_trigger=True)
     flash("Triggered analysis & rebalance. Check Log for details.", "info")
     return redirect(url_for("dashboard"))
 
