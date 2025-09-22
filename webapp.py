@@ -280,7 +280,10 @@ def settings():
             elif key in {"TARGET_POSITIONS","AVOID_NEAR_OPEN_CLOSE_MIN","EARNINGS_DAYS_BEFORE","EARNINGS_DAYS_AFTER"}:
                 payload[key] = int(v) if v else 0
             elif key in {"MAX_WEIGHT","TURNOVER_LIMIT","MIN_ORDER_NOTIONAL","PORTFOLIO_CASH_BUFFER","RISK_OFF_SCALAR","AI_WEIGHT"}:
-                payload[key] = float(v) if v else 0.0
+                if v and v.lower().strip() in ('nan', 'inf', 'infinity', '-inf', '-infinity'):
+                    payload[key] = 0.0  # Reject NaN/Inf injection attempts
+                else:
+                    payload[key] = float(v) if v else 0.0
             else:
                 payload[key] = v
         from settings_store import set_settings
