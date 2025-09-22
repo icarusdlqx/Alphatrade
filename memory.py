@@ -72,7 +72,10 @@ def insert_episode(asof: dt.datetime, window_tag: str, equity: float, cash: floa
             "VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (asof, window_tag, equity, cash, notes, confidence, json.dumps(constraints), json.dumps(top_panel))
         )
-        return int(cur.fetchone()[0])
+        result = cur.fetchone()
+        if result is None:
+            raise RuntimeError("Failed to insert episode - no ID returned")
+        return int(result[0])
 
 def insert_picks(episode_id: int, picks: List[Dict[str, Any]]):
     with _conn() as conn, conn.cursor() as cur:

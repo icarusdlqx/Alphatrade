@@ -12,6 +12,73 @@ from trader import main as run_trader
 app = Flask(__name__)
 app.secret_key = os.getenv("APP_SECRET_KEY","alphatrade-dev-secret")
 
+def startup_health_check():
+    """Comprehensive startup health check to validate all critical components"""
+    health_status = {"database": False, "secrets": False, "alpaca": False, "openai": False}
+    issues = []
+    
+    # Database connectivity check
+    try:
+        from memory import _conn
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+        health_status["database"] = True
+        app.logger.info("✓ Database connection successful")
+    except Exception as e:
+        issues.append(f"Database connection failed: {e}")
+        app.logger.error(f"✗ Database connection failed: {e}")
+    
+    # Required secrets validation
+    required_secrets = {
+        "APP_PASSWORD": os.getenv("APP_PASSWORD"),
+        "ALPACA_API_KEY": os.getenv("ALPACA_API_KEY"),
+        "ALPACA_SECRET_KEY": os.getenv("ALPACA_SECRET_KEY"),
+        "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY")
+    }
+    
+    missing_secrets = [key for key, value in required_secrets.items() if not value or value == "changeme"]
+    if missing_secrets:
+        issues.append(f"Missing or default secrets: {', '.join(missing_secrets)}")
+        app.logger.warning(f"⚠ Missing or default secrets: {', '.join(missing_secrets)}")
+    else:
+        health_status["secrets"] = True
+        app.logger.info("✓ All required secrets configured")
+    
+    # Alpaca API connectivity check
+    try:
+        ok_alpaca, alpaca_msg = check_alpaca()
+        if ok_alpaca:
+            health_status["alpaca"] = True
+            app.logger.info(f"✓ Alpaca API connection successful: {alpaca_msg}")
+        else:
+            issues.append(f"Alpaca API check failed: {alpaca_msg}")
+            app.logger.warning(f"⚠ Alpaca API check failed: {alpaca_msg}")
+    except Exception as e:
+        issues.append(f"Alpaca API validation error: {e}")
+        app.logger.error(f"✗ Alpaca API validation error: {e}")
+    
+    # OpenAI API connectivity check
+    try:
+        ok_openai, openai_msg = check_openai()
+        if ok_openai:
+            health_status["openai"] = True
+            app.logger.info(f"✓ OpenAI API connection successful: {openai_msg}")
+        else:
+            issues.append(f"OpenAI API check failed: {openai_msg}")
+            app.logger.warning(f"⚠ OpenAI API check failed: {openai_msg}")
+    except Exception as e:
+        issues.append(f"OpenAI API validation error: {e}")
+        app.logger.error(f"✗ OpenAI API validation error: {e}")
+    
+    # Summary
+    if issues:
+        app.logger.warning(f"Startup health check completed with {len(issues)} issues: {'; '.join(issues)}")
+    else:
+        app.logger.info("✓ Startup health check completed successfully - all systems operational")
+    
+    return health_status, issues
+
 def is_authed():
     return session.get("authed", False)
 
@@ -38,20 +105,42 @@ def logout():
     return redirect(url_for("login"))
 
 def check_alpaca():
+    # Check for required Alpaca environment variables first
+    alpaca_key = os.getenv("ALPACA_API_KEY")
+    alpaca_secret = os.getenv("ALPACA_SECRET_KEY")
+    
+    if not alpaca_key or not alpaca_secret:
+        missing = []
+        if not alpaca_key: missing.append("ALPACA_API_KEY")
+        if not alpaca_secret: missing.append("ALPACA_SECRET_KEY")
+        return False, f"Missing required secrets: {', '.join(missing)}"
+    
     try:
         acct = get_account()
-        return True, f"Equity ${float(acct.portfolio_value):,.2f} | Cash ${float(acct.cash):,.2f}"
+        # Safely handle account object properties using getattr with defaults
+        portfolio_val = float(getattr(acct, 'portfolio_value', 0) or 0)
+        cash_val = float(getattr(acct, 'cash', 0) or 0)
+        return True, f"Equity ${portfolio_val:,.2f} | Cash ${cash_val:,.2f}"
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"
 
 def check_openai():
+    # Check for required OpenAI API key first
+    key = os.getenv("OPENAI_API_KEY", "")
+    if not key:
+        return False, "Missing required secret: OPENAI_API_KEY"
+    
     try:
-        key = os.getenv("OPENAI_API_KEY","")
-        if not key: raise RuntimeError("Missing OPENAI_API_KEY")
         client = OpenAI(api_key=key)
         models = client.models.list()
-        names = [m.id for m in models.data[:3]]
-        return True, "OK (" + ", ".join(names) + ")"
+        if hasattr(models, 'data') and models.data:
+            names = [m.id for m in models.data[:3] if hasattr(m, 'id')]
+            if names:
+                return True, "OK (" + ", ".join(names) + ")"
+            else:
+                return True, "Connected but no model names available"
+        else:
+            return True, "Connected but models list format unexpected"
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"
 
@@ -77,10 +166,20 @@ def root():
 
 @app.route("/dashboard")
 def dashboard():
-    try: init_db()
-    except Exception: pass
-    try: init_settings_table()
-    except Exception: pass
+    # Database initialization with proper error logging
+    try:
+        init_db()
+        app.logger.info("Database initialized successfully")
+    except Exception as e:
+        app.logger.error(f"Database initialization failed: {type(e).__name__}: {e}")
+        flash("Database connection issue detected. Please check configuration.", "error")
+    
+    try:
+        init_settings_table()
+        app.logger.info("Settings table initialized successfully")
+    except Exception as e:
+        app.logger.error(f"Settings table initialization failed: {type(e).__name__}: {e}")
+        flash("Settings initialization issue detected.", "warning")
 
     S = get_settings()
     ok_alpaca, alpaca_msg = check_alpaca()
@@ -161,4 +260,17 @@ def settings():
     return render_template("settings.html", app_name="AlphaTrade V3", S=S)
 
 if __name__ == "__main__":
+    # Perform startup health check
+    print("Performing startup health check...")
+    health_status, issues = startup_health_check()
+    
+    if issues:
+        print(f"⚠ Startup completed with {len(issues)} issues - check logs for details")
+        for issue in issues[:3]:  # Show first 3 issues
+            print(f"  - {issue}")
+        if len(issues) > 3:
+            print(f"  ... and {len(issues) - 3} more issues (check logs)")
+    else:
+        print("✓ All startup health checks passed")
+    
     app.run(host="0.0.0.0", port=5000, debug=True)
