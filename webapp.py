@@ -12,83 +12,6 @@ from trader import main as run_trader
 app = Flask(__name__)
 app.secret_key = os.getenv("APP_SECRET_KEY","alphatrade-dev-secret")
 
-def to_et(dtobj):
-    """Safely convert a datetime object to Eastern Time"""
-    if not dtobj:
-        return None
-    ET = pytz.timezone("America/New_York")
-    if getattr(dtobj, 'tzinfo', None) is None:
-        # Assume naive datetime is UTC
-        dtobj = pytz.utc.localize(dtobj)
-    return dtobj.astimezone(ET)
-
-def startup_health_check():
-    """Comprehensive startup health check to validate all critical components"""
-    health_status = {"database": False, "secrets": False, "alpaca": False, "openai": False}
-    issues = []
-    
-    # Database connectivity check
-    try:
-        from memory import _conn
-        with _conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1")
-        health_status["database"] = True
-        app.logger.info("✓ Database connection successful")
-    except Exception as e:
-        issues.append(f"Database connection failed: {e}")
-        app.logger.error(f"✗ Database connection failed: {e}")
-    
-    # Required secrets validation
-    required_secrets = {
-        "APP_PASSWORD": os.getenv("APP_PASSWORD"),
-        "ALPACA_API_KEY": os.getenv("ALPACA_API_KEY"),
-        "ALPACA_SECRET_KEY": os.getenv("ALPACA_SECRET_KEY"),
-        "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY")
-    }
-    
-    missing_secrets = [key for key, value in required_secrets.items() if not value or value == "changeme"]
-    if missing_secrets:
-        issues.append(f"Missing or default secrets: {', '.join(missing_secrets)}")
-        app.logger.warning(f"⚠ Missing or default secrets: {', '.join(missing_secrets)}")
-    else:
-        health_status["secrets"] = True
-        app.logger.info("✓ All required secrets configured")
-    
-    # Alpaca API connectivity check
-    try:
-        ok_alpaca, alpaca_msg = check_alpaca()
-        if ok_alpaca:
-            health_status["alpaca"] = True
-            app.logger.info(f"✓ Alpaca API connection successful: {alpaca_msg}")
-        else:
-            issues.append(f"Alpaca API check failed: {alpaca_msg}")
-            app.logger.warning(f"⚠ Alpaca API check failed: {alpaca_msg}")
-    except Exception as e:
-        issues.append(f"Alpaca API validation error: {e}")
-        app.logger.error(f"✗ Alpaca API validation error: {e}")
-    
-    # OpenAI API connectivity check
-    try:
-        ok_openai, openai_msg = check_openai()
-        if ok_openai:
-            health_status["openai"] = True
-            app.logger.info(f"✓ OpenAI API connection successful: {openai_msg}")
-        else:
-            issues.append(f"OpenAI API check failed: {openai_msg}")
-            app.logger.warning(f"⚠ OpenAI API check failed: {openai_msg}")
-    except Exception as e:
-        issues.append(f"OpenAI API validation error: {e}")
-        app.logger.error(f"✗ OpenAI API validation error: {e}")
-    
-    # Summary
-    if issues:
-        app.logger.warning(f"Startup health check completed with {len(issues)} issues: {'; '.join(issues)}")
-    else:
-        app.logger.info("✓ Startup health check completed successfully - all systems operational")
-    
-    return health_status, issues
-
 def is_authed():
     return session.get("authed", False)
 
@@ -115,40 +38,20 @@ def logout():
     return redirect(url_for("login"))
 
 def check_alpaca():
-    # Check for required Alpaca environment variables first
-    alpaca_key = os.getenv("ALPACA_API_KEY")
-    alpaca_secret = os.getenv("ALPACA_SECRET_KEY")
-    
-    if not alpaca_key or not alpaca_secret:
-        missing = []
-        if not alpaca_key: missing.append("ALPACA_API_KEY")
-        if not alpaca_secret: missing.append("ALPACA_SECRET_KEY")
-        return False, f"Missing required secrets: {', '.join(missing)}"
-    
     try:
         acct = get_account()
-        # Safely handle account object properties using getattr with defaults
-        portfolio_val = float(getattr(acct, 'portfolio_value', 0) or 0)
-        cash_val = float(getattr(acct, 'cash', 0) or 0)
-        # Equity is portfolio value minus cash (since portfolio_value includes cash)
-        equity_val = portfolio_val - cash_val
-        return True, f"Equity ${equity_val:,.2f} | Cash ${cash_val:,.2f}"
+        return True, f"Equity ${float(acct.portfolio_value):,.2f} | Cash ${float(acct.cash):,.2f}"
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"
 
 def check_openai():
-    # Check for required OpenAI API key first
-    key = os.getenv("OPENAI_API_KEY", "")
-    if not key:
-        return False, "Missing required secret: OPENAI_API_KEY"
-    
     try:
+        key = os.getenv("OPENAI_API_KEY","")
+        if not key: raise RuntimeError("Missing OPENAI_API_KEY")
         client = OpenAI(api_key=key)
-        # Test the connection by calling the API
         models = client.models.list()
-        # Return status with configured model information
-        configured_model = os.getenv("MODEL_NAME", "gpt-5")
-        return True, f"OK (using {configured_model} with medium reasoning effort)"
+        names = [m.id for m in models.data[:3]]
+        return True, "OK (" + ", ".join(names) + ")"
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"
 
@@ -174,31 +77,16 @@ def root():
 
 @app.route("/dashboard")
 def dashboard():
-    # Database initialization with proper error logging
-    try:
-        init_db()
-        app.logger.info("Database initialized successfully")
-    except Exception as e:
-        app.logger.error(f"Database initialization failed: {type(e).__name__}: {e}")
-        flash("Database connection issue detected. Please check configuration.", "error")
-    
-    try:
-        init_settings_table()
-        app.logger.info("Settings table initialized successfully")
-    except Exception as e:
-        app.logger.error(f"Settings table initialization failed: {type(e).__name__}: {e}")
-        flash("Settings initialization issue detected.", "warning")
+    try: init_db()
+    except Exception: pass
+    try: init_settings_table()
+    except Exception: pass
 
     S = get_settings()
     ok_alpaca, alpaca_msg = check_alpaca()
     ok_openai, openai_msg = check_openai()
     last_eps = recent_episodes(1)
-    if last_eps:
-        # Convert UTC timestamp to Eastern Time for display
-        last_asof_et = to_et(last_eps[0]["asof"])
-        last_run = last_asof_et.strftime("%Y-%m-%d %H:%M ET") if last_asof_et else "—"
-    else:
-        last_run = "—"
+    last_run = last_eps[0]["asof"].strftime("%Y-%m-%d %H:%M ET") if last_eps else "—"
     return render_template("dashboard.html",
                            app_name="AlphaTrade V3",
                            ok_alpaca=ok_alpaca, alpaca_msg=alpaca_msg,
@@ -207,7 +95,7 @@ def dashboard():
 
 @app.route("/run", methods=["POST"])
 def run_now():
-    run_trader()
+    run_trader(force=True)  # manual override bypasses window
     flash("Triggered analysis & rebalance. Check Log for details.", "info")
     return redirect(url_for("dashboard"))
 
@@ -220,36 +108,16 @@ def positions():
 
 @app.route("/log")
 def log():
-    import json
     rows = fetch_logs(400)
-    # Parse JSON details for template and convert timestamps to ET
-    for row in rows:
-        try:
-            if isinstance(row['detail'], (dict, list)):
-                row['parsed_detail'] = row['detail']
-            elif isinstance(row['detail'], (str, bytes)):
-                row['parsed_detail'] = json.loads(row['detail'])
-            else:
-                row['parsed_detail'] = {}
-        except:
-            row['parsed_detail'] = {}
-        
-        # Convert UTC timestamp to Eastern Time and pre-format for template
-        at_et = to_et(row['at'])
-        row['at_et_str'] = at_et.strftime('%m/%d %H:%M:%S ET') if at_et else '—'
     return render_template("log.html", app_name="AlphaTrade V3", rows=rows)
 
 @app.route("/performance")
 def performance():
-    from memory import equity_series
     series = equity_series(500)
-    # Convert UTC timestamps to Eastern Time for performance chart labels
-    labels = [to_et(r["asof"]).strftime("%Y-%m-%d %H:%M ET") if to_et(r["asof"]) else str(r["asof"]) for r in series]
+    labels = [r["asof"].strftime("%Y-%m-%d %H:%M") for r in series]
     equity = [float(r["equity"]) for r in series]
     cash = [float(r["cash"]) for r in series]
-    # Calculate total (equity + cash) for each data point
-    total = [e + c for e, c in zip(equity, cash)]
-    return render_template("performance.html", app_name="AlphaTrade V3", labels=labels, equity=equity, cash=cash, total=total)
+    return render_template("performance.html", app_name="AlphaTrade V3", labels=labels, equity=equity, cash=cash)
 
 @app.route("/settings", methods=["GET","POST"])
 def settings():
@@ -257,7 +125,7 @@ def settings():
         payload = {}
         for key in [
             "ENABLED","TARGET_POSITIONS","MAX_WEIGHT","TURNOVER_LIMIT","MIN_ORDER_NOTIONAL","PORTFOLIO_CASH_BUFFER",
-            "WINDOWS_ET","AVOID_NEAR_OPEN_CLOSE_MIN","UNIVERSE_MODE","USE_INTRADAY",
+            "WINDOWS_ET","AVOID_NEAR_OPEN_CLOSE_MIN","UNIVERSE_MODE","WINDOW_TOL_MIN","USE_INTRADAY",
             "EARNINGS_GATING","EARNINGS_DAYS_BEFORE","EARNINGS_DAYS_AFTER","EARNINGS_PROVIDER","EARNINGS_API_KEY",
             "MACRO_DATES","REGIME_FILTER","RISK_OFF_SCALAR","WEIGHTING_POSTPROCESS","AI_WEIGHT"
         ]:
@@ -265,32 +133,17 @@ def settings():
             if v is None: continue
             if key in {"USE_INTRADAY","EARNINGS_GATING","REGIME_FILTER","ENABLED"}:
                 payload[key] = (v == "on")
-            elif key in {"TARGET_POSITIONS","AVOID_NEAR_OPEN_CLOSE_MIN","EARNINGS_DAYS_BEFORE","EARNINGS_DAYS_AFTER"}:
+            elif key in {"TARGET_POSITIONS","AVOID_NEAR_OPEN_CLOSE_MIN","WINDOW_TOL_MIN","EARNINGS_DAYS_BEFORE","EARNINGS_DAYS_AFTER"}:
                 payload[key] = int(v) if v else 0
             elif key in {"MAX_WEIGHT","TURNOVER_LIMIT","MIN_ORDER_NOTIONAL","PORTFOLIO_CASH_BUFFER","RISK_OFF_SCALAR","AI_WEIGHT"}:
                 payload[key] = float(v) if v else 0.0
             else:
                 payload[key] = v
-        from settings_store import set_settings
         set_settings(payload)
         flash("Settings saved.", "success")
         return redirect(url_for("settings"))
-    from settings_store import get_settings
     S = get_settings()
     return render_template("settings.html", app_name="AlphaTrade V3", S=S)
 
 if __name__ == "__main__":
-    # Perform startup health check
-    print("Performing startup health check...")
-    health_status, issues = startup_health_check()
-    
-    if issues:
-        print(f"⚠ Startup completed with {len(issues)} issues - check logs for details")
-        for issue in issues[:3]:  # Show first 3 issues
-            print(f"  - {issue}")
-        if len(issues) > 3:
-            print(f"  ... and {len(issues) - 3} more issues (check logs)")
-    else:
-        print("✓ All startup health checks passed")
-    
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=8000, debug=True)

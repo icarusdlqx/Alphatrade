@@ -47,12 +47,11 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 CREATE INDEX IF NOT EXISTS orders_episode_idx ON orders(episode_id);
 
--- Unified run log
 CREATE TABLE IF NOT EXISTS runlog (
   id BIGSERIAL PRIMARY KEY,
   at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  level TEXT,         -- INFO | SKIP | ORDER | WARNING | ERROR
-  event TEXT,         -- e.g., run_start, market_closed, turnover_limit, submitted, ...
+  level TEXT,
+  event TEXT,
   detail JSONB
 );
 CREATE INDEX IF NOT EXISTS runlog_at_idx ON runlog(at DESC);
@@ -72,17 +71,14 @@ def insert_episode(asof: dt.datetime, window_tag: str, equity: float, cash: floa
             "VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (asof, window_tag, equity, cash, notes, confidence, json.dumps(constraints), json.dumps(top_panel))
         )
-        result = cur.fetchone()
-        if result is None:
-            raise RuntimeError("Failed to insert episode - no ID returned")
-        return int(result[0])
+        return int(cur.fetchone()[0])
 
 def insert_picks(episode_id: int, picks: List[Dict[str, Any]]):
     with _conn() as conn, conn.cursor() as cur:
         for p in picks:
             cur.execute(
                 "INSERT INTO picks(episode_id, symbol, weight, rationale) VALUES(%s,%s,%s,%s)",
-                (episode_id, p.get("symbol"), p.get("weight"), p.get("rationale",""))
+                (p.get("symbol"), p.get("symbol"), p.get("weight"), p.get("rationale",""))
             )
 
 def insert_order(episode_id: int, alpaca_order_id: str, symbol: str, side: str,
@@ -96,17 +92,8 @@ def insert_order(episode_id: int, alpaca_order_id: str, symbol: str, side: str,
         )
 
 def insert_log(level: str, event: str, detail: Dict[str, Any] | None = None):
-    def json_serializer(obj):
-        if isinstance(obj, dt.datetime):
-            return obj.isoformat()
-        elif isinstance(obj, dt.date):
-            return obj.isoformat()
-        elif hasattr(obj, '__float__'):  # Handle Decimal and similar numeric types
-            return float(obj)
-        raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
-    
     with _conn() as conn, conn.cursor() as cur:
-        cur.execute("INSERT INTO runlog(level, event, detail) VALUES(%s,%s,%s)", (level, event, json.dumps(detail or {}, default=json_serializer)))
+        cur.execute("INSERT INTO runlog(level, event, detail) VALUES(%s,%s,%s)", (level, event, json.dumps(detail or {})))
 
 def fetch_logs(limit: int = 400) -> List[Dict[str, Any]]:
     with _conn() as conn, conn.cursor(row_factory=dict_row) as cur:

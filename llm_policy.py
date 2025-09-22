@@ -28,9 +28,8 @@ Return concise rationales.
 
 def choose_portfolio(candidates_json: str, target_positions: int, max_weight: float, model: str = None, memory_context: str = "") -> Dict:
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-    # Default to gpt-5 unless overridden by env var MODEL_NAME or function arg
     model = model or os.getenv("MODEL_NAME", "gpt-5")
-    effort = os.getenv("REASONING_EFFORT", "medium")  # low | medium | high (default medium)
+    effort = os.getenv("REASONING_EFFORT", "medium")
 
     schema = {
         "name": "PolicyResponse",
@@ -62,7 +61,7 @@ def choose_portfolio(candidates_json: str, target_positions: int, max_weight: fl
 
     resp = client.responses.create(
         model=model,
-        reasoning={"effort": effort},  # <-- control GPT-5 reasoning effort
+        reasoning={"effort": effort},
         input=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": "Memory context (recap of recent episodes):\n" + (memory_context or "None")},

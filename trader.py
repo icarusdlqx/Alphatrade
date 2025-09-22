@@ -25,23 +25,29 @@ def load_universe(mode: str = "sp500_etfs") -> list[str]:
         sp500 = [s.strip() for s in open(DATA_DIR/"sp500_fallback.csv").read().strip().splitlines() if s.strip()]
     return sorted(set(sp500 + etfs))
 
-def within_time_window_et(now_utc: dt.datetime, windows_csv: str) -> bool:
+def within_time_window_et(now_utc: dt.datetime, windows_csv: str, tol_min: int) -> bool:
     ny = now_utc.astimezone(pytz.timezone("America/New_York"))
-    tstr = ny.strftime("%H:%M")
-    return tstr in set(w.strip() for w in windows_csv.split(","))
+    times = [t.strip() for t in windows_csv.split(",") if t.strip()]
+    for t in times:
+        hh, mm = [int(x) for x in t.split(":")]
+        target = ny.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        delta = abs((ny - target).total_seconds())/60.0
+        if delta <= tol_min:
+            return True
+    return False
 
 def window_tag(now_utc: dt.datetime) -> str:
     ny = now_utc.astimezone(pytz.timezone("America/New_York"))
     return "am" if ny.hour < 12 else "pm"
 
-def main():
-    try:
-        init_db(); init_settings_table()
-    except Exception as e:
-        insert_log("ERROR", "db_init_failed", {"err": str(e)})
+def main(force: bool=False):
+    try: init_db(); init_settings_table()
+    except Exception as e: insert_log("ERROR", "db_init_failed", {"err": str(e)})
 
     S = get_settings()
-    insert_log("INFO", "run_start", {"enabled": S.get("ENABLED", True), "windows": S.get("WINDOWS_ET")})
+    insert_log("INFO", "run_start", {"enabled": S.get("ENABLED", True), "windows": S.get("WINDOWS_ET"), "tol_min": S.get("WINDOW_TOL_MIN", 30)})
+    try: insert_log("INFO", "ai_config", {"model": os.getenv("MODEL_NAME","gpt-5"), "effort": os.getenv("REASONING_EFFORT","medium")})
+    except Exception: pass
 
     if not S.get("ENABLED", True):
         insert_log("SKIP", "disabled", {}); return
@@ -55,7 +61,7 @@ def main():
         insert_log("SKIP", "macro_day", {"date": ny_date}); return
 
     now = info["now"]
-    if not within_time_window_et(now, S["WINDOWS_ET"]):
+    if not force and not within_time_window_et(now, S["WINDOWS_ET"], int(S.get("WINDOW_TOL_MIN",30))):
         insert_log("SKIP", "outside_window", {"now": now.isoformat()}); return
 
     acct = get_account()
@@ -65,8 +71,7 @@ def main():
     positions = get_positions()
     universe = load_universe(S["UNIVERSE_MODE"])
     bars = get_bars(universe, days=250)
-    if bars.empty:
-        insert_log("ERROR", "no_bars", {}); return
+    if bars.empty: insert_log("ERROR", "no_bars", {}); return
 
     feats = compute_features(bars)
     invest_scalar = 1.0
@@ -78,10 +83,10 @@ def main():
     top = feats.head(50).copy()
     panel = top[["symbol","score","ret21","ret63","vol20_annual","trend","last","qual126"]].to_dict(orient="records")
     memctx = build_memory_context(5)
-    rsp = choose_portfolio(json.dumps(panel), int(S["TARGET_POSITIONS"]), float(S["MAX_WEIGHT"]), model=os.getenv("MODEL_NAME","gpt-5-pro"), memory_context=memctx)
+    rsp = choose_portfolio(json.dumps(panel), int(S["TARGET_POSITIONS"]), float(S["MAX_WEIGHT"]), model=os.getenv("MODEL_NAME","gpt-5"), memory_context=memctx)
     insert_log("INFO", "picks_model", {"count": len(rsp.get("picks", []))})
 
-    # earnings gating (only if configured)
+    # earnings gating (optional, only if configured)
     if S["EARNINGS_GATING"] and S.get("EARNINGS_PROVIDER") and S.get("EARNINGS_API_KEY") and rsp.get("picks"):
         try:
             from earnings_provider import get_upcoming_earnings
@@ -98,7 +103,6 @@ def main():
         except Exception as e:
             insert_log("WARNING", "earnings_gating_failed", {"err": str(e)})
 
-    # weighting post-process
     if rsp.get("picks") and S.get("WEIGHTING_POSTPROCESS","vol_target") != "none":
         risk_w = risk_weights_for(rsp["picks"], top, float(S["MAX_WEIGHT"]))
         if risk_w:
@@ -106,8 +110,7 @@ def main():
             blend = {}
             AIW = float(S.get("AI_WEIGHT", 0.5))
             for sym in ai_w.keys() | risk_w.keys():
-                w_ai = ai_w.get(sym, 0.0); w_r = risk_w.get(sym, 0.0)
-                blend[sym] = min(float(S["MAX_WEIGHT"]), max(0.0, AIW*w_ai + (1.0-AIW)*w_r))
+                blend[sym] = min(float(S["MAX_WEIGHT"]), max(0.0, AIW*ai_w.get(sym,0.0) + (1.0-AIW)*risk_w.get(sym,0.0)))
             ssum = sum(blend.values())
             if ssum > 1.0 and ssum > 0:
                 for k in list(blend.keys()): blend[k] = blend[k]/ssum
@@ -117,10 +120,9 @@ def main():
                     p["weight"] = blend[p["symbol"]]; new_picks.append(p)
             rsp["picks"] = new_picks
 
-    # episode log
     episode_id = None
     try:
-        constraints = {k: S[k] for k in ["TARGET_POSITIONS","MAX_WEIGHT","TURNOVER_LIMIT","MIN_ORDER_NOTIONAL","WINDOWS_ET","AVOID_NEAR_OPEN_CLOSE_MIN","USE_INTRADAY","REGIME_FILTER","RISK_OFF_SCALAR"] if k in S}
+        constraints = {k: S[k] for k in ["TARGET_POSITIONS","MAX_WEIGHT","TURNOVER_LIMIT","MIN_ORDER_NOTIONAL","WINDOWS_ET","WINDOW_TOL_MIN","AVOID_NEAR_OPEN_CLOSE_MIN","USE_INTRADAY","REGIME_FILTER","RISK_OFF_SCALAR"] if k in S}
         episode_id = insert_episode(asof=now, window_tag=window_tag(now), equity=equity, cash=cash,
                                     notes=rsp.get("notes",""), confidence=float(rsp.get("confidence",0.5)),
                                     constraints=constraints, top_panel=panel)
@@ -128,7 +130,6 @@ def main():
     except Exception as e:
         insert_log("WARNING", "episode_log_failed", {"err": str(e)})
 
-    # targets
     investable = max(0.0, equity * (1.0 - float(S["PORTFOLIO_CASH_BUFFER"]))) * invest_scalar
     targets = {p["symbol"]: investable * p["weight"] for p in rsp.get("picks", [])}
 
@@ -144,7 +145,6 @@ def main():
         except Exception as e:
             insert_log("WARNING", "intraday_price_fetch_failed", {"err": str(e)})
 
-    # turnover check
     cur_notional = sum(positions[s]["market_value"] for s in positions)
     est_turnover = 0.0
     for sym in set(list(positions.keys()) + list(targets.keys())):
@@ -186,3 +186,6 @@ def main():
                 insert_log("ORDER", "submitted", {"order_id": order_id, **od})
     else:
         insert_log("INFO", "no_orders", {})
+
+if __name__ == "__main__":
+    main()
