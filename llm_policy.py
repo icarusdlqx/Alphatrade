@@ -28,10 +28,10 @@ Return concise rationales.
 
 def choose_portfolio(candidates_json: str, target_positions: int, max_weight: float, model: str | None = None, memory_context: str = "") -> Dict:
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-    model = model or os.getenv("MODEL_NAME", "gpt-5")
+    model = model or os.getenv("MODEL_NAME", "gpt-4o")  # Default to widely available model
 
     # Prepare messages for chat completion
-    messages = [
+    messages: List[Dict[str, str]] = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"Memory context (recap of recent episodes):\n{memory_context or 'None'}"},
         {"role": "user", "content": f"Candidate panel (JSON):\n{candidates_json}"},
@@ -64,27 +64,41 @@ def choose_portfolio(candidates_json: str, target_positions: int, max_weight: fl
         "additionalProperties": False
     }
 
-    try:
-        # Try GPT-5 with Responses API first
-        if "gpt-5" in model and hasattr(client, 'responses'):
+    content = "{}"
+    
+    # Try GPT-5 with Responses API first if requested
+    if "gpt-5" in model and hasattr(client, 'responses'):
+        try:
             resp = client.responses.create(
                 model=model,
-                input=f"{SYSTEM_PROMPT}\n\nMemory context: {memory_context or 'None'}\n\nCandidate panel: {candidates_json}\n\nReturn <= {target_positions} symbols; cap {max_weight:.2f} each; total weight <= 1.0.",
-                reasoning={"effort": "medium"}
+                input=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Memory context: {memory_context or 'None'}\n\nCandidate panel: {candidates_json}\n\nReturn <= {target_positions} symbols; cap {max_weight:.2f} each; total weight <= 1.0. Return valid JSON matching the schema."},
+                ],
+                reasoning={"effort": "medium"},
+                response_format={"type": "json_schema", "json_schema": {"name": "PolicyResponse", "schema": schema}}
             )
             content = getattr(resp, 'output_text', "{}")
-        else:
-            # Fall back to Chat Completions API
+            print(f"GPT-5 Responses API success")
+        except Exception as e:
+            print(f"GPT-5 Responses API failed: {e}, falling back to Chat Completions")
+            content = None  # Signal fallback needed
+    
+    # Use Chat Completions API (either as fallback or primary)
+    if content is None or content == "{}":
+        try:
+            fallback_model = "gpt-4o" if "gpt-5" in model else model
             resp = client.chat.completions.create(
-                model=model if "gpt-5" not in model else "gpt-4o",  # Use GPT-4o if GPT-5 not available in chat
-                messages=messages,
+                model=fallback_model,
+                messages=messages,  # type: ignore
                 response_format={"type": "json_schema", "json_schema": {"name": "PolicyResponse", "schema": schema}},
                 temperature=0.2
             )
-            content = resp.choices[0].message.content
-    except Exception as e:
-        print(f"Error with API call: {e}")
-        content = "{}"
+            content = resp.choices[0].message.content or "{}"
+            print(f"Chat Completions API success with model: {fallback_model}")
+        except Exception as e:
+            print(f"Chat Completions API also failed: {e}")
+            content = "{}"
 
     try:
         parsed = PolicyResponse.model_validate_json(content or "{}")
