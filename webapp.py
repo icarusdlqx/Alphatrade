@@ -207,8 +207,12 @@ def dashboard():
 
 @app.route("/run", methods=["POST"])
 def run_now():
-    run_trader(manual_trigger=True)
-    flash("Triggered analysis & rebalance. Check Log for details.", "info")
+    try:
+        run_trader(manual_trigger=True)
+        flash("✅ Analysis completed successfully! Check Log for details.", "success")
+    except Exception as e:
+        app.logger.error(f"Analysis failed: {type(e).__name__}: {e}", exc_info=True)
+        flash(f"❌ Analysis failed: {type(e).__name__}: {e}", "error")
     return redirect(url_for("dashboard"))
 
 @app.route("/positions")
