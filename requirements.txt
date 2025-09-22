@@ -8,12 +8,3 @@ openai>=1.50.0
 python-dateutil
 psycopg[binary]>=3.1
 gunicorn>=21.2.0
-alpaca-py
-flask
-numpy
-openai
-pandas
-psycopg
-pydantic
-python-dateutil
-pytz

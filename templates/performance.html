@@ -10,13 +10,7 @@ const data1 = {{ equity|tojson }};
 const data2 = {{ cash|tojson }};
 new Chart(document.getElementById('chart'), {
   type: 'line',
-  data: {
-    labels: labels,
-    datasets: [
-      {label:'Equity', data: data1},
-      {label:'Cash', data: data2}
-    ]
-  },
+  data: { labels: labels, datasets: [ {label:'Equity', data: data1}, {label:'Cash', data: data2} ] },
   options: {responsive:true, scales:{x:{display:true}, y:{beginAtZero:false}}}
 });
 </script>

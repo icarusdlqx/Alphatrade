@@ -1,7 +1,6 @@
 from __future__ import annotations
 import os, json, datetime as dt
 from typing import List, Dict, Optional, Any
-import pytz
 import psycopg
 from psycopg.rows import dict_row
 
@@ -9,7 +8,7 @@ DB_URL = os.getenv("DB_URL") or os.getenv("DATABASE_URL") or os.getenv("REPLIT_D
 
 def _conn():
     if not DB_URL:
-        raise RuntimeError("No DB_URL / DATABASE_URL found. Add a Replit Database and store its connection string as DB_URL.")
+        raise RuntimeError("No DB_URL / DATABASE_URL found.")
     return psycopg.connect(DB_URL, autocommit=True)
 
 SCHEMA_SQL = """
@@ -47,6 +46,16 @@ CREATE TABLE IF NOT EXISTS orders (
   filled_at TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS orders_episode_idx ON orders(episode_id);
+
+-- Unified run log
+CREATE TABLE IF NOT EXISTS runlog (
+  id BIGSERIAL PRIMARY KEY,
+  at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  level TEXT,         -- INFO | SKIP | ORDER | WARNING | ERROR
+  event TEXT,         -- e.g., run_start, market_closed, turnover_limit, submitted, ...
+  detail JSONB
+);
+CREATE INDEX IF NOT EXISTS runlog_at_idx ON runlog(at DESC);
 """
 
 def init_db():
@@ -63,8 +72,7 @@ def insert_episode(asof: dt.datetime, window_tag: str, equity: float, cash: floa
             "VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (asof, window_tag, equity, cash, notes, confidence, json.dumps(constraints), json.dumps(top_panel))
         )
-        eid = cur.fetchone()[0]
-        return int(eid)
+        return int(cur.fetchone()[0])
 
 def insert_picks(episode_id: int, picks: List[Dict[str, Any]]):
     with _conn() as conn, conn.cursor() as cur:
@@ -84,6 +92,25 @@ def insert_order(episode_id: int, alpaca_order_id: str, symbol: str, side: str,
             (episode_id, alpaca_order_id, symbol, side, notional, qty, status, submitted_at)
         )
 
+def insert_log(level: str, event: str, detail: Dict[str, Any] | None = None):
+    with _conn() as conn, conn.cursor() as cur:
+        cur.execute("INSERT INTO runlog(level, event, detail) VALUES(%s,%s,%s)", (level, event, json.dumps(detail or {})))
+
+def fetch_logs(limit: int = 400) -> List[Dict[str, Any]]:
+    with _conn() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT at, level, event, detail FROM runlog ORDER BY at DESC LIMIT %s", (limit,))
+        return cur.fetchall()
+
+def fetch_orders(limit: int = 200) -> List[Dict[str, Any]]:
+    with _conn() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT * FROM orders ORDER BY submitted_at DESC NULLS LAST, id DESC LIMIT %s", (limit,))
+        return cur.fetchall()
+
+def equity_series(limit: int = 300) -> List[Dict[str, Any]]:
+    with _conn() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT asof, equity, cash FROM episodes ORDER BY asof ASC LIMIT %s", (limit,))
+        return cur.fetchall()
+
 def recent_episodes(n: int = 5) -> List[Dict[str, Any]]:
     with _conn() as conn, conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT * FROM episodes ORDER BY asof DESC LIMIT %s", (n,))
@@ -96,22 +123,13 @@ def recent_episodes(n: int = 5) -> List[Dict[str, Any]]:
             out.append(e)
         return out
 
-def fetch_orders(limit: int = 200) -> List[Dict[str, Any]]:
-    with _conn() as conn, conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT * FROM orders ORDER BY submitted_at DESC NULLS LAST, id DESC LIMIT %s", (limit,))
-        return cur.fetchall()
-
-def equity_series(limit: int = 300) -> List[Dict[str, Any]]:
-    with _conn() as conn, conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT asof, equity, cash FROM episodes ORDER BY asof ASC LIMIT %s", (limit,))
-        return cur.fetchall()
-
 def build_memory_context(n: int = 5) -> str:
     eps = recent_episodes(n)
     if not eps:
         return "No prior episodes."
     lines = []
     for e in eps[::-1]:
+        when = e["asof"].strftime("%Y-%m-%d %H:%M")
         picks_str = ", ".join(f"{p['symbol']}:{float(p['weight']):.0%}" for p in e.get("picks", []) if p.get("symbol"))
-        lines.append(f"{e['asof'].strftime('%Y-%m-%d %H:%M')} ({e.get('window_tag','?')}): {picks_str or 'no positions'}")
+        lines.append(f"{when} ({e.get('window_tag','?')}): {picks_str or 'no positions'}")
     return "Recent episodes → " + " | ".join(lines)

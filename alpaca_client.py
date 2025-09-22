@@ -1,6 +1,6 @@
 from __future__ import annotations
 import os, datetime as dt, pytz
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple
 import pandas as pd
 
 from alpaca.trading.client import TradingClient
@@ -10,19 +10,19 @@ from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 
-APCA_KEY = os.environ.get("ALPACA_API_KEY_V3", "")
-APCA_SEC = os.environ.get("ALPACA_SECRET_KEY_V3", "")
+ALPACA_API_KEY_V3 = os.environ.get("ALPACA_API_KEY_V3") or os.environ.get("APCA_API_KEY_ID", "")
+ALPACA_SECRET_KEY_V3 = os.environ.get("ALPACA_SECRET_KEY_V3") or os.environ.get("APCA_API_SECRET_KEY", "")
 APCA_BASE_URL = os.getenv("APCA_BASE_URL", "https://paper-api.alpaca.markets")
 
 def _trading_client():
-    if not APCA_KEY or not APCA_SEC:
-        raise RuntimeError("Missing Alpaca API keys.")
-    return TradingClient(APCA_KEY, APCA_SEC, paper=APCA_BASE_URL.endswith("paper-api.alpaca.markets"))
+    if not ALPACA_API_KEY_V3 or not ALPACA_SECRET_KEY_V3:
+        raise RuntimeError("Missing ALPACA_API_KEY_V3 / ALPACA_SECRET_KEY_V3")
+    return TradingClient(ALPACA_API_KEY_V3, ALPACA_SECRET_KEY_V3, paper=APCA_BASE_URL.endswith("paper-api.alpaca.markets"))
 
 def _data_client():
-    if not APCA_KEY or not APCA_SEC:
-        raise RuntimeError("Missing Alpaca API keys.")
-    return StockHistoricalDataClient(APCA_KEY, APCA_SEC)
+    if not ALPACA_API_KEY_V3 or not ALPACA_SECRET_KEY_V3:
+        raise RuntimeError("Missing ALPACA_API_KEY_V3 / ALPACA_SECRET_KEY_V3")
+    return StockHistoricalDataClient(ALPACA_API_KEY_V3, ALPACA_SECRET_KEY_V3)
 
 def get_account():
     return _trading_client().get_account()

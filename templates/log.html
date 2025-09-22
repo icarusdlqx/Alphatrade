@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h4>Log</h4>
+<p class="muted">Entries include start/skip/metrics and <strong>trades in bold</strong>. Newest first.</p>
+<table role="grid">
+  <thead><tr><th>Time</th><th>Level</th><th>Event</th><th>Detail</th></tr></thead>
+  <tbody>
+    {% for r in rows %}
+      <tr class="lev-{{ r.level }}">
+        <td>{{ r.at }}</td>
+        <td>{{ r.level }}</td>
+        <td>{{ r.event }}</td>
+        <td><code style="white-space:pre-wrap">{{ r.detail }}</code></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4">No log entries yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

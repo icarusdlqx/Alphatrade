@@ -1,6 +1,4 @@
 import os
-
-# Defaults; can be overridden by DB settings at runtime
 DEFAULTS = {
     "TARGET_POSITIONS": int(os.getenv("TARGET_POSITIONS", "10")),
     "MAX_WEIGHT": float(os.getenv("MAX_WEIGHT", "0.20")),
@@ -16,13 +14,13 @@ DEFAULTS = {
     "EARNINGS_DAYS_AFTER": int(os.getenv("EARNINGS_DAYS_AFTER", "1")),
     "EARNINGS_PROVIDER": os.getenv("EARNINGS_PROVIDER", ""),
     "EARNINGS_API_KEY": os.getenv("EARNINGS_API_KEY", ""),
-    "MACRO_DATES": os.getenv("MACRO_DATES", ""),  # "YYYY-MM-DD,YYYY-MM-DD"
+    "MACRO_DATES": os.getenv("MACRO_DATES", ""),
     "REGIME_FILTER": os.getenv("REGIME_FILTER", "true").lower() == "true",
     "RISK_OFF_SCALAR": float(os.getenv("RISK_OFF_SCALAR", "0.60")),
     "WEIGHTING_POSTPROCESS": os.getenv("WEIGHTING_POSTPROCESS", "vol_target"),
     "AI_WEIGHT": float(os.getenv("AI_WEIGHT", "0.5")),
     "ENABLED": os.getenv("ENABLED", "true").lower() == "true",
-    "MODEL_NAME": os.getenv("MODEL_NAME", "gpt-5"),
+    "MODEL_NAME": os.getenv("MODEL_NAME", "gpt-5-pro"),
     "APCA_BASE_URL": os.getenv("APCA_BASE_URL", "https://paper-api.alpaca.markets"),
     "DRY_RUN": os.getenv("DRY_RUN", "false").lower() == "true",
 }
