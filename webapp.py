@@ -207,12 +207,20 @@ def dashboard():
 
 @app.route("/run", methods=["POST"])
 def run_now():
-    try:
-        run_trader(manual_trigger=True)
-        flash("✅ Analysis completed successfully! Check Log for details.", "success")
-    except Exception as e:
-        app.logger.error(f"Analysis failed: {type(e).__name__}: {e}", exc_info=True)
-        flash(f"❌ Analysis failed: {type(e).__name__}: {e}", "error")
+    import threading
+    
+    def run_analysis_async():
+        try:
+            run_trader(manual_trigger=True)
+            app.logger.info("Manual analysis completed successfully")
+        except Exception as e:
+            app.logger.error(f"Manual analysis failed: {type(e).__name__}: {e}", exc_info=True)
+    
+    # Start analysis in background thread
+    thread = threading.Thread(target=run_analysis_async, daemon=True)
+    thread.start()
+    
+    flash("🚀 Analysis started! Check the Log tab in a few seconds for results.", "info")
     return redirect(url_for("dashboard"))
 
 @app.route("/positions")
