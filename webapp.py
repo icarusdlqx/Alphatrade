@@ -120,7 +120,9 @@ def check_alpaca():
         # Safely handle account object properties using getattr with defaults
         portfolio_val = float(getattr(acct, 'portfolio_value', 0) or 0)
         cash_val = float(getattr(acct, 'cash', 0) or 0)
-        return True, f"Equity ${portfolio_val:,.2f} | Cash ${cash_val:,.2f}"
+        # Equity is portfolio value minus cash (since portfolio_value includes cash)
+        equity_val = portfolio_val - cash_val
+        return True, f"Equity ${equity_val:,.2f} | Cash ${cash_val:,.2f}"
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"
 
@@ -132,15 +134,11 @@ def check_openai():
     
     try:
         client = OpenAI(api_key=key)
+        # Test the connection by calling the API
         models = client.models.list()
-        if hasattr(models, 'data') and models.data:
-            names = [m.id for m in models.data[:3] if hasattr(m, 'id')]
-            if names:
-                return True, "OK (" + ", ".join(names) + ")"
-            else:
-                return True, "Connected but no model names available"
-        else:
-            return True, "Connected but models list format unexpected"
+        # Return status with configured model information
+        configured_model = os.getenv("MODEL_NAME", "gpt-5")
+        return True, f"OK (using {configured_model} with medium reasoning effort)"
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"
 
@@ -229,7 +227,9 @@ def performance():
     labels = [r["asof"].strftime("%Y-%m-%d %H:%M") for r in series]
     equity = [float(r["equity"]) for r in series]
     cash = [float(r["cash"]) for r in series]
-    return render_template("performance.html", app_name="AlphaTrade V3", labels=labels, equity=equity, cash=cash)
+    # Calculate total (equity + cash) for each data point
+    total = [e + c for e, c in zip(equity, cash)]
+    return render_template("performance.html", app_name="AlphaTrade V3", labels=labels, equity=equity, cash=cash, total=total)
 
 @app.route("/settings", methods=["GET","POST"])
 def settings():
