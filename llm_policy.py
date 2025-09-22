@@ -1,6 +1,6 @@
 from __future__ import annotations
 import json, os, datetime as dt
-from typing import Dict, List, Any
+from typing import Dict, List
 from pydantic import BaseModel, Field
 from openai import OpenAI
 
@@ -26,82 +26,60 @@ Hard constraints:
 Return concise rationales.
 """
 
-def choose_portfolio(candidates_json: str, target_positions: int, max_weight: float, model: str | None = None, memory_context: str = "") -> Dict:
+def choose_portfolio(candidates_json: str, target_positions: int, max_weight: float, model: str = None, memory_context: str = "") -> Dict:
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-    model = model or os.getenv("MODEL_NAME", "gpt-4o")  # Default to widely available model
+    # Default to gpt-5 unless overridden by env var MODEL_NAME or function arg
+    model = model or os.getenv("MODEL_NAME", "gpt-5")
+    effort = os.getenv("REASONING_EFFORT", "medium")  # low | medium | high (default medium)
 
-    # Prepare messages for chat completion
-    messages: List[Dict[str, str]] = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"Memory context (recap of recent episodes):\n{memory_context or 'None'}"},
-        {"role": "user", "content": f"Candidate panel (JSON):\n{candidates_json}"},
-        {"role": "user", "content": f"Return <= {target_positions} symbols; cap {max_weight:.2f} each; total weight <= 1.0. Favor durable trends; keep turnover low."}
-    ]
-
-    # Schema for structured output
     schema = {
-        "type": "object",
-        "properties": {
-            "asof": {"type": "string"},
-            "picks": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "symbol": {"type": "string"},
-                        "weight": {"type": "number", "minimum": 0, "maximum": max_weight},
-                        "rationale": {"type": "string"}
+        "name": "PolicyResponse",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "asof": {"type": "string"},
+                "picks": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {"type": "string"},
+                            "weight": {"type": "number", "minimum": 0, "maximum": max_weight},
+                            "rationale": {"type": "string"}
+                        },
+                        "required": ["symbol", "weight", "rationale"],
+                        "additionalProperties": False
                     },
-                    "required": ["symbol", "weight", "rationale"],
-                    "additionalProperties": False
+                    "maxItems": target_positions
                 },
-                "maxItems": target_positions
+                "notes": {"type": "string"},
+                "confidence": {"type": "number", "minimum": 0, "maximum": 1}
             },
-            "notes": {"type": "string"},
-            "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+            "required": ["asof", "picks"]
         },
-        "required": ["asof", "picks"],
-        "additionalProperties": False
+        "strict": True
     }
 
-    content = "{}"
-    
-    # Try GPT-5 with Responses API first if requested
-    if "gpt-5" in model and hasattr(client, 'responses'):
-        try:
-            resp = client.responses.create(
-                model=model,
-                input=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Memory context: {memory_context or 'None'}\n\nCandidate panel: {candidates_json}\n\nReturn <= {target_positions} symbols; cap {max_weight:.2f} each; total weight <= 1.0. Return valid JSON matching the schema."},
-                ],
-                reasoning={"effort": "medium"},
-                response_format={"type": "json_schema", "json_schema": {"name": "PolicyResponse", "schema": schema}}
-            )
-            content = getattr(resp, 'output_text', "{}")
-            print(f"GPT-5 Responses API success")
-        except Exception as e:
-            print(f"GPT-5 Responses API failed: {e}, falling back to Chat Completions")
-            content = None  # Signal fallback needed
-    
-    # Use Chat Completions API (either as fallback or primary)
-    if content is None or content == "{}":
-        try:
-            fallback_model = "gpt-4o" if "gpt-5" in model else model
-            resp = client.chat.completions.create(
-                model=fallback_model,
-                messages=messages,  # type: ignore
-                response_format={"type": "json_schema", "json_schema": {"name": "PolicyResponse", "schema": schema}},
-                temperature=0.2
-            )
-            content = resp.choices[0].message.content or "{}"
-            print(f"Chat Completions API success with model: {fallback_model}")
-        except Exception as e:
-            print(f"Chat Completions API also failed: {e}")
-            content = "{}"
+    resp = client.responses.create(
+        model=model,
+        reasoning={"effort": effort},  # <-- control GPT-5 reasoning effort
+        input=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": "Memory context (recap of recent episodes):\n" + (memory_context or "None")},
+            {"role": "user", "content": "Candidate panel (JSON):\n" + candidates_json},
+            {"role": "user", "content": f"Return <= {target_positions} symbols; cap {max_weight:.2f} each; total weight <= 1.0. Favor durable trends; keep turnover low."}
+        ],
+        response_format={"type":"json_schema", "json_schema": schema},
+        temperature=0.2
+    )
 
     try:
-        parsed = PolicyResponse.model_validate_json(content or "{}")
+        content = resp.output[0].content[0].text
+    except Exception:
+        content = getattr(resp, "output_text", None) or "{}"
+
+    try:
+        parsed = PolicyResponse.model_validate_json(content)
     except Exception as e:
         parsed = PolicyResponse(asof=dt.datetime.utcnow().isoformat(), picks=[], notes=f"ValidationError: {e}", confidence=0.0)
 
