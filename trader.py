@@ -66,14 +66,16 @@ def main(manual_trigger: bool = False):
     if S["MACRO_DATES"] and ny_date in set(S["MACRO_DATES"].split(",")):
         insert_log("SKIP", "macro_day", {"date": ny_date}); return
 
-    now = info["now"]
     # Different time window logic for manual vs scheduled runs
     if manual_trigger:
-        # For manual runs, allow trading during market hours
-        if not within_market_hours_et(now):
-            insert_log("SKIP", "outside_market_hours", {"now": now.isoformat(), "trigger": "manual"}); return
+        # For manual runs, use the actual current time and allow trading during market hours
+        current_utc = dt.datetime.now(pytz.UTC)
+        if not within_market_hours_et(current_utc):
+            insert_log("SKIP", "outside_market_hours", {"now": current_utc.isoformat(), "trigger": "manual"}); return
+        now = current_utc  # Use current time for the rest of the logic
     else:
-        # For scheduled runs, use exact time windows
+        # For scheduled runs, use Alpaca clock time and exact time windows
+        now = info["now"]
         if not within_time_window_et(now, S["WINDOWS_ET"]):
             insert_log("SKIP", "outside_window", {"now": now.isoformat(), "trigger": "scheduled"}); return
 
