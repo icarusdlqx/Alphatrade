@@ -108,7 +108,19 @@ def positions():
 
 @app.route("/log")
 def log():
+    import json
     rows = fetch_logs(400)
+    # Parse JSON details for template
+    for row in rows:
+        try:
+            if isinstance(row['detail'], (dict, list)):
+                row['parsed_detail'] = row['detail']
+            elif isinstance(row['detail'], (str, bytes)):
+                row['parsed_detail'] = json.loads(row['detail'])
+            else:
+                row['parsed_detail'] = {}
+        except:
+            row['parsed_detail'] = {}
     return render_template("log.html", app_name="AlphaTrade V3", rows=rows)
 
 @app.route("/performance")
@@ -149,4 +161,4 @@ def settings():
     return render_template("settings.html", app_name="AlphaTrade V3", S=S)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
