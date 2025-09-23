@@ -62,9 +62,10 @@ def main(force: bool=False, trigger: str="manual"):
     if not ok:
         insert_log("SKIP", "market_closed_or_near_bell", info); return
 
-    now = info["now"]
+    # Use Eastern Time for all timestamps instead of UTC
+    now = dt.datetime.now(pytz.timezone("America/New_York"))
 
-    if not force and not within_time_window_et(now, S["WINDOWS_ET"], int(S.get("WINDOW_TOL_MIN",30))):
+    if not force and not within_time_window_et(now.astimezone(pytz.UTC), S["WINDOWS_ET"], int(S.get("WINDOW_TOL_MIN",30))):
         insert_log("SKIP", "outside_window", {"now": now.isoformat()}); return
 
     # Sync portfolio positions from Alpaca (source of truth)

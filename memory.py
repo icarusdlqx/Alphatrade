@@ -1,5 +1,5 @@
 from __future__ import annotations
-import os, json, datetime as dt
+import os, json, datetime as dt, pytz
 from typing import List, Dict, Optional, Any
 import psycopg
 from psycopg.rows import dict_row
@@ -97,8 +97,11 @@ def insert_log(level: str, event: str, detail: Dict[str, Any] | None = None):
             return obj.isoformat()
         raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
     
+    # Use Eastern Time for logging timestamps
+    et_now = dt.datetime.now(pytz.timezone("America/New_York"))
+    
     with _conn() as conn, conn.cursor() as cur:
-        cur.execute("INSERT INTO runlog(level, event, detail) VALUES(%s,%s,%s)", (level, event, json.dumps(detail or {}, default=json_serializer)))
+        cur.execute("INSERT INTO runlog(at, level, event, detail) VALUES(%s,%s,%s,%s)", (et_now, level, event, json.dumps(detail or {}, default=json_serializer)))
 
 def fetch_logs(limit: int = 400) -> List[Dict[str, Any]]:
     with _conn() as conn, conn.cursor(row_factory=dict_row) as cur:
