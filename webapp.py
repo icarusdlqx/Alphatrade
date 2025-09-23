@@ -42,8 +42,8 @@ def startup_health_check():
     # Required secrets validation
     required_secrets = {
         "APP_PASSWORD": os.getenv("APP_PASSWORD"),
-        "ALPACA_API_KEY": os.getenv("ALPACA_API_KEY"),
-        "ALPACA_SECRET_KEY": os.getenv("ALPACA_SECRET_KEY"),
+        "ALPACA_API_KEY_V3": os.getenv("ALPACA_API_KEY_V3") or os.getenv("APCA_API_KEY_ID"),
+        "ALPACA_SECRET_KEY_V3": os.getenv("ALPACA_SECRET_KEY_V3") or os.getenv("APCA_API_SECRET_KEY"),
         "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY")
     }
     
@@ -115,14 +115,14 @@ def logout():
     return redirect(url_for("login"))
 
 def check_alpaca():
-    # Check for required Alpaca environment variables first
-    alpaca_key = os.getenv("ALPACA_API_KEY")
-    alpaca_secret = os.getenv("ALPACA_SECRET_KEY")
+    # Check for required Alpaca environment variables first (V3 keys with fallback)
+    alpaca_key = os.getenv("ALPACA_API_KEY_V3") or os.getenv("APCA_API_KEY_ID")
+    alpaca_secret = os.getenv("ALPACA_SECRET_KEY_V3") or os.getenv("APCA_API_SECRET_KEY")
     
     if not alpaca_key or not alpaca_secret:
         missing = []
-        if not alpaca_key: missing.append("ALPACA_API_KEY")
-        if not alpaca_secret: missing.append("ALPACA_SECRET_KEY")
+        if not alpaca_key: missing.append("ALPACA_API_KEY_V3 (or APCA_API_KEY_ID)")
+        if not alpaca_secret: missing.append("ALPACA_SECRET_KEY_V3 (or APCA_API_SECRET_KEY)")
         return False, f"Missing required secrets: {', '.join(missing)}"
     
     try:
