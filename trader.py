@@ -73,7 +73,8 @@ def main(force: bool=False, trigger: str="manual"):
     
     try:
         acct = get_account()
-        equity = _equity_fallback(acct)
+        # Use actual equity and cash from Alpaca (not buying power with leverage)
+        equity = float(getattr(acct, "equity", 0.0)) - float(getattr(acct, "cash", 0.0))  # Market value of positions
         cash = float(getattr(acct, "cash", 0.0))
         
         if equity <= 0 and cash <= 0:
@@ -224,10 +225,12 @@ def main(force: bool=False, trigger: str="manual"):
         insert_log("INFO", "analysis_summary", {"decision": "dry_run_only", "orders": orders})
         return
 
+    submitted_order_ids = []
     for od in orders:
         if "notional" in od: res = submit_notional_order(od["symbol"], od["notional"], od["side"])
         else: res = submit_qty_order(od["symbol"], od["qty"], od["side"])
         order_id = str(getattr(res, "id", ""))
+        submitted_order_ids.append(order_id)
         try:
             if episode_id:
                 submitted_at = getattr(res, "submitted_at", None)
@@ -235,5 +238,48 @@ def main(force: bool=False, trigger: str="manual"):
         except Exception as e:
             insert_log("WARNING", "order_log_failed", {"err": str(e)})
         insert_log("ORDER", "submitted", {"order_id": order_id, **od})
+
+    # Order reconciliation - verify orders were executed correctly
+    import time
+    if submitted_order_ids:
+        insert_log("INFO", "reconciliation_start", {"order_count": len(submitted_order_ids)})
+        time.sleep(2)  # Brief delay to allow orders to be processed
+        
+        try:
+            from alpaca_client import reconcile_orders
+            reconciliation_results = reconcile_orders(submitted_order_ids)
+            
+            filled_orders = 0
+            failed_orders = 0
+            for order_id, result in reconciliation_results.items():
+                if "error" in result:
+                    insert_log("ERROR", "order_reconciliation_error", {"order_id": order_id, "error": result["error"]})
+                    failed_orders += 1
+                elif result.get("status") in ["filled", "partially_filled"]:
+                    insert_log("INFO", "order_filled", {
+                        "order_id": order_id,
+                        "status": result["status"],
+                        "symbol": result["symbol"],
+                        "side": result["side"],
+                        "filled_qty": result.get("filled_qty"),
+                        "filled_price": result.get("filled_avg_price")
+                    })
+                    filled_orders += 1
+                else:
+                    insert_log("WARNING", "order_pending", {
+                        "order_id": order_id,
+                        "status": result["status"],
+                        "symbol": result["symbol"]
+                    })
+            
+            insert_log("INFO", "reconciliation_complete", {
+                "total_orders": len(submitted_order_ids),
+                "filled_orders": filled_orders,
+                "failed_orders": failed_orders,
+                "pending_orders": len(submitted_order_ids) - filled_orders - failed_orders
+            })
+            
+        except Exception as e:
+            insert_log("ERROR", "reconciliation_failed", {"error": str(e)})
 
     insert_log("INFO", "analysis_summary", {"decision": "orders_submitted", "count": len(orders)} )

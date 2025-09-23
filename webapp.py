@@ -130,9 +130,9 @@ def check_alpaca():
         # Safely handle account object properties using getattr with defaults
         portfolio_val = float(getattr(acct, 'portfolio_value', 0) or 0)
         cash_val = float(getattr(acct, 'cash', 0) or 0)
-        # Equity is portfolio value minus cash (since portfolio_value includes cash)
-        equity_val = portfolio_val - cash_val
-        return True, f"Equity ${equity_val:,.2f} | Cash ${cash_val:,.2f}"
+        # Use actual equity from Alpaca instead of calculating it
+        equity_val = float(getattr(acct, 'equity', 0) or 0)
+        return True, f"Total Portfolio ${portfolio_val:,.2f} | Cash ${cash_val:,.2f} | Equity ${equity_val:,.2f}"
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"
 

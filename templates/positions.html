@@ -30,8 +30,8 @@
                 <td style="color: {{ 'green' if pos.unrealized_pl|float >= 0 else 'red' }};">
                     ${{ "%.2f"|format(pos.unrealized_pl|float) }}
                 </td>
-                <td style="color: {{ 'green' if pos.unrealized_plpc|float >= 0 else 'red' }};">
-                    {{ "%.2f"|format(pos.unrealized_plpc|float * 100) }}%
+                <td style="color: {{ 'green' if (pos.unrealized_pl|float / (pos.market_value|float - pos.unrealized_pl|float)) >= 0 else 'red' }};">
+                    {{ "%.2f"|format((pos.unrealized_pl|float / (pos.market_value|float - pos.unrealized_pl|float)) * 100) }}%
                 </td>
             </tr>
             {% endfor %}

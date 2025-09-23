@@ -122,6 +122,29 @@ def submit_qty_order(symbol: str, qty: float, side: str):
     req = MarketOrderRequest(symbol=symbol, qty=qty, side=OrderSide.BUY if side.lower()=="buy" else OrderSide.SELL, time_in_force=TimeInForce.DAY)
     return client.submit_order(req)
 
+def get_order_by_id(order_id: str):
+    """Get order details by ID for reconciliation"""
+    client = _trading_client()
+    return client.get_order_by_id(order_id)
+
+def reconcile_orders(order_ids: List[str]) -> Dict[str, Dict]:
+    """Check the status of submitted orders for reconciliation"""
+    client = _trading_client()
+    reconciled = {}
+    for order_id in order_ids:
+        try:
+            order = client.get_order_by_id(order_id)
+            reconciled[order_id] = {
+                "status": order.status.value if hasattr(order.status, 'value') else str(order.status),
+                "filled_qty": float(getattr(order, "filled_qty", 0)),
+                "filled_avg_price": float(getattr(order, "filled_avg_price", 0)) if getattr(order, "filled_avg_price", None) else None,
+                "symbol": order.symbol,
+                "side": order.side.value if hasattr(order.side, 'value') else str(order.side)
+            }
+        except Exception as e:
+            reconciled[order_id] = {"error": str(e)}
+    return reconciled
+
 def list_fractionable(symbols: List[str]) -> Dict[str, bool]:
     client = _trading_client()
     res = {}
