@@ -73,18 +73,25 @@ def main(force: bool=False, trigger: str="manual"):
     
     try:
         acct = get_account()
-        # Use actual equity and cash from Alpaca (not buying power with leverage)
-        equity = float(getattr(acct, "equity", 0.0)) - float(getattr(acct, "cash", 0.0))  # Market value of positions
+        # Get total portfolio value and cash from Alpaca (not buying power with leverage)
+        total_portfolio = _equity_fallback(acct)  # Uses portfolio_value, equity, or cash as fallback
         cash = float(getattr(acct, "cash", 0.0))
+        
+        # Sanity check for Alpaca inconsistencies 
+        if total_portfolio == 0 and cash > 0:
+            total_portfolio = cash
+            insert_log("WARNING", "alpaca_pv_inconsistency", {"message": "Portfolio value zero but cash available, using cash as total portfolio", "cash": cash})
+        
+        equity = max(0.0, total_portfolio - cash)  # Market value of positions only
         
         if equity <= 0 and cash <= 0:
             insert_log("ERROR", "sync_failed", {"error": "Account shows zero equity and cash - sync failed"})
             return
         
         insert_log("INFO", "sync_success", {
-            "equity": equity, 
-            "cash": cash, 
-            "total_portfolio": equity + cash,
+            "total_portfolio": total_portfolio,
+            "cash": cash,
+            "equity": equity,
             "message": "Portfolio successfully synchronized from Alpaca"
         })
         
@@ -162,8 +169,8 @@ def main(force: bool=False, trigger: str="manual"):
     except Exception as e:
         insert_log("WARNING", "episode_log_failed", {"err": str(e)})
 
-    # Targets and orders
-    investable = max(0.0, equity * (1.0 - float(S["PORTFOLIO_CASH_BUFFER"]))) * invest_scalar
+    # Targets and orders - use total portfolio value, not just existing positions
+    investable = max(0.0, total_portfolio * (1.0 - float(S["PORTFOLIO_CASH_BUFFER"]))) * invest_scalar
     targets = {p["symbol"]: investable * p["weight"] for p in picks}
 
     positions = get_positions()

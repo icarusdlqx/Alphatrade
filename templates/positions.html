@@ -30,8 +30,13 @@
                 <td style="color: {{ 'green' if pos.unrealized_pl|float >= 0 else 'red' }};">
                     ${{ "%.2f"|format(pos.unrealized_pl|float) }}
                 </td>
-                <td style="color: {{ 'green' if (pos.unrealized_pl|float / (pos.market_value|float - pos.unrealized_pl|float)) >= 0 else 'red' }};">
-                    {{ "%.2f"|format((pos.unrealized_pl|float / (pos.market_value|float - pos.unrealized_pl|float)) * 100) }}%
+                {% set cost_basis = pos.market_value|float - pos.unrealized_pl|float %}
+                <td style="color: {{ 'green' if pos.unrealized_pl|float >= 0 else 'red' }};">
+                    {% if cost_basis > 0 %}
+                        {{ "%.2f"|format((pos.unrealized_pl|float / cost_basis) * 100) }}%
+                    {% else %}
+                        —
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

@@ -7,7 +7,7 @@
   <tbody>
     {% for r in rows %}
       <tr class="lev-{{ r.level }}">
-        <td>{{ r.at }}</td>
+        <td>{{ r.at_et_str }}</td>
         <td>
           {% if r.level == 'ORDER' %}<strong>Order Submitted</strong>
           {% elif r.event == 'analysis_summary' %}
