@@ -2,121 +2,33 @@
 {% block content %}
 <h4>Trading Log</h4>
 <p class="muted">Real-time trading activity and system events. Most recent entries first.</p>
-
-<style>
-.log-table {
-  margin-top: 1rem;
-  border-collapse: collapse;
-  width: 100%;
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-.log-table th {
-  background: #f8f9fa;
-  padding: 12px 16px;
-  text-align: left;
-  font-weight: 600;
-  border-bottom: 2px solid #dee2e6;
-}
-.log-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid #f1f3f4;
-  vertical-align: top;
-}
-.log-table tr:hover {
-  background: #f8f9fa;
-}
-.log-date {
-  color: #6c757d;
-  font-family: monospace;
-  font-size: 0.9em;
-  white-space: nowrap;
-  min-width: 150px;
-}
-.log-event {
-  font-weight: 600;
-  color: #495057;
-}
-.log-details {
-  color: #6c757d;
-  max-width: 500px;
-  word-wrap: break-word;
-}
-.level-ERROR .log-event { color: #dc3545; }
-.level-INFO .log-event { color: #0066cc; }
-.level-SKIP .log-event { color: #fd7e14; }
-.level-TRADE .log-event { color: #198754; font-weight: 700; }
-.level-WARNING .log-event { color: #ffc107; }
-</style>
-
-<table class="log-table" role="grid">
-  <thead>
-    <tr>
-      <th style="width: 180px;">Date</th>
-      <th style="width: 250px;">Event</th>
-      <th>Details</th>
-    </tr>
-  </thead>
+<table role="grid">
+  <thead><tr><th>Time</th><th>Event</th><th>Details</th></tr></thead>
   <tbody>
     {% for r in rows %}
-      {% set event_map = {
-        'run_start': 'Analysis Started',
-        'disabled': 'Trading Disabled',
-        'market_closed_or_near_bell': 'Market Closed',
-        'outside_window': 'Outside Trading Window',
-        'macro_day': 'Skipped - Macro Event Day',
-        'account_snapshot': 'Account Update',
-        'regime': 'Market Regime Check',
-        'picks_model': 'AI Portfolio Selection',
-        'earnings_filter': 'Earnings Filter Applied',
-        'order_submitted': 'Order Placed',
-        'order_failed': 'Order Failed',
-        'rebalance_complete': 'Portfolio Rebalanced',
-        'no_bars': 'No Market Data Available',
-        'db_init_failed': 'Database Error',
-        'data_fetch_failed': 'Market Data Error'
-      } %}
-      {% set event_text = event_map.get(r.event, r.event.replace('_', ' ').title()) %}
-      
-      {% if r.parsed_detail %}
-        {% if r.event == 'account_snapshot' %}
-          {% if r.parsed_detail.get('portfolio_total') %}
-            {% set detail_text = 'Equity: $' + '{:,.0f}'.format(r.parsed_detail.equity|float) + ', Cash: $' + '{:,.0f}'.format(r.parsed_detail.cash|float) %}
-          {% else %}
-            {% set detail_text = 'Equity: $' + '{:,.0f}'.format(r.parsed_detail.equity|float) + ', Cash: $' + '{:,.0f}'.format(r.parsed_detail.cash|float) %}
-          {% endif %}
-        {% elif r.event == 'regime' %}
-          {% set detail_text = 'Market Breadth: ' + (r.parsed_detail.breadth * 100)|round(1)|string + '%, SPY Trend: ' + (r.parsed_detail.spy_trend * 100)|round(1)|string + '%, Risk Scalar: ' + (r.parsed_detail.scalar * 100)|round(0)|string + '%' %}
-        {% elif r.event == 'picks_model' %}
-          {% set detail_text = 'Selected ' + r.parsed_detail.count|string + ' positions for portfolio' %}
-        {% elif r.event == 'market_closed_or_near_bell' %}
-          {% set detail_text = 'Market status: ' + (r.parsed_detail.reason or 'Closed') %}
-        {% elif r.event == 'macro_day' %}
-          {% set detail_text = 'Skipping due to macro event on ' + r.parsed_detail.date %}
-        {% elif r.event == 'outside_window' %}
-          {% set detail_text = 'Current time outside configured trading windows' %}
-        {% elif r.event == 'earnings_filter' %}
-          {% set detail_text = 'Filtered ' + r.parsed_detail.filtered|string + ' stocks near earnings' %}
-        {% elif r.event == 'order_submitted' %}
-          {% set detail_text = r.parsed_detail.symbol + ' - ' + r.parsed_detail.side.upper() + ' $' + '{:,.0f}'.format(r.parsed_detail.notional|float) %}
-        {% elif r.event == 'data_fetch_failed' %}
-          {% set detail_text = 'Alpaca data subscription issue: ' + (r.parsed_detail.error|string)[:100] + ('...' if r.parsed_detail.error|string|length > 100 else '') %}
-        {% else %}
-          {% set detail_text = r.parsed_detail | string %}
-        {% endif %}
-      {% else %}
-        {% set detail_text = '' %}
-      {% endif %}
-      
-      <tr class="level-{{ r.level }}">
-        <td class="log-date">{{ r.at_et_str }}</td>
-        <td class="log-event">{{ event_text }}</td>
-        <td class="log-details">{{ detail_text }}</td>
+      <tr class="lev-{{ r.level }}">
+        <td>{{ r.at }}</td>
+        <td>
+          {% if r.level == 'ORDER' %}<strong>Order Submitted</strong>
+          {% elif r.event == 'analysis_summary' %}
+            {% if r.detail.decision == 'orders_submitted' %}<strong>Orders Submitted</strong>
+            {% elif r.detail.decision == 'hold' %}Hold / No Orders
+            {% elif r.detail.decision == 'no_orders' %}No Orders
+            {% elif r.detail.decision == 'no_new_positions' %}No New Positions
+            {% elif r.detail.decision == 'dry_run_only' %}Dry‑run Only
+            {% else %}Analysis Summary{% endif %}
+          {% elif r.event == 'outside_window' %}Outside Trading Window
+          {% elif r.event == 'market_closed_or_near_bell' %}Market Closed / Near Bell
+          {% elif r.event == 'run_start' %}Analysis Started
+          {% elif r.event == 'account_snapshot' %}Account Update
+          {% elif r.event == 'regime_detail' %}Market Regime Check
+          {% elif r.event == 'picks_model' or r.event == 'picks_detail' %}AI Portfolio Selection
+          {% else %}{{ r.event|replace('_',' ')|title }}{% endif %}
+        </td>
+        <td><code style="white-space:pre-wrap">{{ r.detail }}</code></td>
       </tr>
     {% else %}
-      <tr><td colspan="3" style="text-align: center; padding: 2rem; color: #6c757d;">No log entries yet. Click "Run Analysis" to start trading.</td></tr>
+      <tr><td colspan="3">No log entries yet.</td></tr>
     {% endfor %}
   </tbody>
 </table>
