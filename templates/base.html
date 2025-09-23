@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ app_name }}{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <style>
+        .lev-ORDER { background-color: #e8f5e8; }
+        .lev-ERROR { background-color: #ffeaea; }
+        .lev-WARNING { background-color: #fff3cd; }
+        .muted { color: #6c757d; font-size: 0.9em; }
+        .flash-messages { margin-bottom: 1rem; }
+        .flash-error { color: #dc3545; background-color: #f8d7da; padding: 0.75rem; border-radius: 0.375rem; }
+        .flash-success { color: #155724; background-color: #d4edda; padding: 0.75rem; border-radius: 0.375rem; }
+    </style>
+</head>
+<body>
+    <nav class="container">
+        <ul>
+            <li><strong>{{ app_name }}</strong></li>
+        </ul>
+        {% if session.get('authed') %}
+        <ul>
+            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('positions') }}">Positions</a></li>
+            <li><a href="{{ url_for('log') }}">Log</a></li>
+            <li><a href="{{ url_for('performance') }}">Performance</a></li>
+            <li><a href="{{ url_for('settings') }}">Settings</a></li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+        {% endif %}
+    </nav>
+    
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
