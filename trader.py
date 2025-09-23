@@ -67,10 +67,28 @@ def main(force: bool=False, trigger: str="manual"):
     if not force and not within_time_window_et(now, S["WINDOWS_ET"], int(S.get("WINDOW_TOL_MIN",30))):
         insert_log("SKIP", "outside_window", {"now": now.isoformat()}); return
 
-    acct = get_account()
-    equity = _equity_fallback(acct)
-    cash = float(getattr(acct, "cash", 0.0))
-    insert_log("INFO", "account_snapshot", {"equity": equity, "cash": cash})
+    # Sync portfolio positions from Alpaca (source of truth)
+    insert_log("INFO", "sync_start", {"message": "Synchronizing portfolio from Alpaca account (source of truth)"})
+    
+    try:
+        acct = get_account()
+        equity = _equity_fallback(acct)
+        cash = float(getattr(acct, "cash", 0.0))
+        
+        if equity <= 0 and cash <= 0:
+            insert_log("ERROR", "sync_failed", {"error": "Account shows zero equity and cash - sync failed"})
+            return
+        
+        insert_log("INFO", "sync_success", {
+            "equity": equity, 
+            "cash": cash, 
+            "total_portfolio": equity + cash,
+            "message": "Portfolio successfully synchronized from Alpaca"
+        })
+        
+    except Exception as e:
+        insert_log("ERROR", "alpaca_sync_failed", {"error": str(e), "message": "Failed to sync with Alpaca - trading aborted"})
+        return
 
     universe = load_universe(S["UNIVERSE_MODE"])
     bars = get_bars(universe, days=250)
@@ -130,7 +148,8 @@ def main(force: bool=False, trigger: str="manual"):
                     p["weight"] = blend[p["symbol"]]; new_picks.append(p)
             picks = new_picks
 
-    # Episode
+    # Record episode with synchronized Alpaca portfolio data before making trades
+    insert_log("INFO", "episode_recording", {"message": "Recording episode with Alpaca-synchronized portfolio data"})
     episode_id = None
     try:
         constraints = {k: S[k] for k in ["TARGET_POSITIONS","MAX_WEIGHT","TURNOVER_LIMIT","MIN_ORDER_NOTIONAL","WINDOWS_ET","WINDOW_TOL_MIN","AVOID_NEAR_OPEN_CLOSE_MIN","USE_INTRADAY","REGIME_FILTER","RISK_OFF_SCALAR"] if k in S}

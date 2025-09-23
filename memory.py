@@ -92,8 +92,13 @@ def insert_order(episode_id: int, alpaca_order_id: str, symbol: str, side: str,
         )
 
 def insert_log(level: str, event: str, detail: Dict[str, Any] | None = None):
+    def json_serializer(obj):
+        if isinstance(obj, dt.datetime):
+            return obj.isoformat()
+        raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+    
     with _conn() as conn, conn.cursor() as cur:
-        cur.execute("INSERT INTO runlog(level, event, detail) VALUES(%s,%s,%s)", (level, event, json.dumps(detail or {})))
+        cur.execute("INSERT INTO runlog(level, event, detail) VALUES(%s,%s,%s)", (level, event, json.dumps(detail or {}, default=json_serializer)))
 
 def fetch_logs(limit: int = 400) -> List[Dict[str, Any]]:
     with _conn() as conn, conn.cursor(row_factory=dict_row) as cur:

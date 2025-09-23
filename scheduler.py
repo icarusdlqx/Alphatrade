@@ -17,7 +17,7 @@ def should_run_now() -> bool:
             return False
             
         now_utc = dt.datetime.now(pytz.UTC)
-        return within_time_window_et(now_utc, S["WINDOWS_ET"])
+        return within_time_window_et(now_utc, S["WINDOWS_ET"], int(S.get("WINDOW_TOL_MIN", 30)))
     except Exception as e:
         print(f"Error checking schedule: {e}")
         return False
@@ -46,7 +46,7 @@ def main():
             if current_minute != last_run_minute and should_run_now():
                 print(f"[{eastern.strftime('%Y-%m-%d %H:%M:%S ET')}] Triggering scheduled trading run...")
                 try:
-                    run_trader(manual_trigger=False)
+                    run_trader(trigger="scheduled")
                     print(f"[{eastern.strftime('%Y-%m-%d %H:%M:%S ET')}] Trading run completed")
                 except Exception as e:
                     print(f"[{eastern.strftime('%Y-%m-%d %H:%M:%S ET')}] Trading run failed: {e}")
