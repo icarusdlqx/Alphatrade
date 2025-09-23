@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Current Positions</h1>
+
+<div style="margin-bottom: 1rem;">
+    {% if ok %}
+        <p style="color: green;">✓ Alpaca Connected: {{ status_msg }}</p>
+    {% else %}
+        <p style="color: red;">✗ Alpaca Error: {{ status_msg }}</p>
+    {% endif %}
+</div>
+
+{% if positions %}
+    <table>
+        <thead>
+            <tr>
+                <th>Symbol</th>
+                <th>Quantity</th>
+                <th>Market Value</th>
+                <th>Unrealized P&L</th>
+                <th>Unrealized %</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for symbol, pos in positions.items() %}
+            <tr>
+                <td><strong>{{ symbol }}</strong></td>
+                <td>{{ pos.qty }}</td>
+                <td>${{ "%.2f"|format(pos.market_value|float) }}</td>
+                <td style="color: {{ 'green' if pos.unrealized_pl|float >= 0 else 'red' }};">
+                    ${{ "%.2f"|format(pos.unrealized_pl|float) }}
+                </td>
+                <td style="color: {{ 'green' if pos.unrealized_plpc|float >= 0 else 'red' }};">
+                    {{ "%.2f"|format(pos.unrealized_plpc|float * 100) }}%
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No positions found or unable to retrieve positions.</p>
+{% endif %}
+{% endblock %}

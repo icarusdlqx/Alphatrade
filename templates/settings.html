@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Settings</h1>
+
+<form method="post">
+    <fieldset>
+        <legend>Core Settings</legend>
+        
+        <label>
+            <input type="checkbox" name="ENABLED" {% if S.get('ENABLED') %}checked{% endif %}>
+            Enable Trading
+        </label>
+        
+        <label for="TARGET_POSITIONS">Target Positions</label>
+        <input type="number" name="TARGET_POSITIONS" value="{{ S.get('TARGET_POSITIONS', 10) }}" min="1" max="100">
+        
+        <label for="MAX_WEIGHT">Max Weight (%)</label>
+        <input type="number" name="MAX_WEIGHT" value="{{ S.get('MAX_WEIGHT', 10.0) }}" step="0.1" min="0" max="100">
+        
+        <label for="TURNOVER_LIMIT">Turnover Limit (%)</label>
+        <input type="number" name="TURNOVER_LIMIT" value="{{ S.get('TURNOVER_LIMIT', 20.0) }}" step="0.1" min="0" max="100">
+        
+        <label for="MIN_ORDER_NOTIONAL">Min Order Size ($)</label>
+        <input type="number" name="MIN_ORDER_NOTIONAL" value="{{ S.get('MIN_ORDER_NOTIONAL', 100.0) }}" step="1" min="1">
+        
+        <label for="PORTFOLIO_CASH_BUFFER">Cash Buffer (%)</label>
+        <input type="number" name="PORTFOLIO_CASH_BUFFER" value="{{ S.get('PORTFOLIO_CASH_BUFFER', 5.0) }}" step="0.1" min="0" max="50">
+    </fieldset>
+    
+    <fieldset>
+        <legend>Trading Windows</legend>
+        
+        <label for="WINDOWS_ET">Trading Times (ET)</label>
+        <input type="text" name="WINDOWS_ET" value="{{ S.get('WINDOWS_ET', '10:05,14:35') }}" 
+               placeholder="10:05,14:35">
+        <small>Comma-separated times in HH:MM format (Eastern Time)</small>
+        
+        <label for="AVOID_NEAR_OPEN_CLOSE_MIN">Avoid Open/Close (minutes)</label>
+        <input type="number" name="AVOID_NEAR_OPEN_CLOSE_MIN" value="{{ S.get('AVOID_NEAR_OPEN_CLOSE_MIN', 30) }}" min="0" max="120">
+    </fieldset>
+    
+    <fieldset>
+        <legend>Universe & Data</legend>
+        
+        <label for="UNIVERSE_MODE">Universe Mode</label>
+        <select name="UNIVERSE_MODE">
+            <option value="SP500" {% if S.get('UNIVERSE_MODE') == 'SP500' %}selected{% endif %}>S&P 500</option>
+            <option value="LARGE_CAP" {% if S.get('UNIVERSE_MODE') == 'LARGE_CAP' %}selected{% endif %}>Large Cap ETFs</option>
+        </select>
+        
+        <label>
+            <input type="checkbox" name="USE_INTRADAY" {% if S.get('USE_INTRADAY') %}checked{% endif %}>
+            Use Intraday Data
+        </label>
+    </fieldset>
+    
+    <fieldset>
+        <legend>Earnings Filter</legend>
+        
+        <label>
+            <input type="checkbox" name="EARNINGS_GATING" {% if S.get('EARNINGS_GATING') %}checked{% endif %}>
+            Enable Earnings Gating
+        </label>
+        
+        <label for="EARNINGS_DAYS_BEFORE">Days Before Earnings</label>
+        <input type="number" name="EARNINGS_DAYS_BEFORE" value="{{ S.get('EARNINGS_DAYS_BEFORE', 2) }}" min="0" max="10">
+        
+        <label for="EARNINGS_DAYS_AFTER">Days After Earnings</label>
+        <input type="number" name="EARNINGS_DAYS_AFTER" value="{{ S.get('EARNINGS_DAYS_AFTER', 1) }}" min="0" max="10">
+        
+        <label for="EARNINGS_PROVIDER">Earnings Provider</label>
+        <input type="text" name="EARNINGS_PROVIDER" value="{{ S.get('EARNINGS_PROVIDER', 'fmp') }}">
+        
+        <label for="EARNINGS_API_KEY">Earnings API Key</label>
+        <input type="password" name="EARNINGS_API_KEY" value="{{ S.get('EARNINGS_API_KEY', '') }}">
+    </fieldset>
+    
+    <fieldset>
+        <legend>Advanced Settings</legend>
+        
+        <label for="MACRO_DATES">Macro Dates</label>
+        <textarea name="MACRO_DATES" rows="3">{{ S.get('MACRO_DATES', '') }}</textarea>
+        <small>One date per line in YYYY-MM-DD format</small>
+        
+        <label>
+            <input type="checkbox" name="REGIME_FILTER" {% if S.get('REGIME_FILTER') %}checked{% endif %}>
+            Enable Regime Filter
+        </label>
+        
+        <label for="RISK_OFF_SCALAR">Risk-Off Scalar</label>
+        <input type="number" name="RISK_OFF_SCALAR" value="{{ S.get('RISK_OFF_SCALAR', 0.5) }}" step="0.1" min="0" max="2">
+        
+        <label for="WEIGHTING_POSTPROCESS">Weighting Post-process</label>
+        <input type="text" name="WEIGHTING_POSTPROCESS" value="{{ S.get('WEIGHTING_POSTPROCESS', 'equal') }}">
+        
+        <label for="AI_WEIGHT">AI Weight</label>
+        <input type="number" name="AI_WEIGHT" value="{{ S.get('AI_WEIGHT', 1.0) }}" step="0.1" min="0" max="5">
+    </fieldset>
+    
+    <button type="submit">Save Settings</button>
+</form>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="grid">
+    <div>
+        <h3>Alpaca Status</h3>
+        {% if ok_alpaca %}
+            <p style="color: green;">✓ Connected: {{ alpaca_msg }}</p>
+        {% else %}
+            <p style="color: red;">✗ {{ alpaca_msg }}</p>
+        {% endif %}
+    </div>
+    
+    <div>
+        <h3>OpenAI Status</h3>
+        {% if ok_openai %}
+            <p style="color: green;">✓ Connected: {{ openai_msg }}</p>
+        {% else %}
+            <p style="color: red;">✗ {{ openai_msg }}</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid">
+    <div>
+        <h3>Last Run</h3>
+        <p>{{ last_run }}</p>
+    </div>
+    
+    <div>
+        <h3>Next Run</h3>
+        <p>{{ next_run }}</p>
+    </div>
+</div>
+
+<div style="margin-top: 2rem;">
+    <form method="post" action="{{ url_for('run_now') }}">
+        <button type="submit" class="contrast">🚀 Run Analysis Now</button>
+    </form>
+</div>
+
+<div style="margin-top: 2rem;">
+    <h3>System Settings</h3>
+    {% if settings %}
+        <p><strong>Enabled:</strong> {{ settings.get('ENABLED', False) }}</p>
+        <p><strong>Target Positions:</strong> {{ settings.get('TARGET_POSITIONS', 0) }}</p>
+        <p><strong>Max Weight:</strong> {{ settings.get('MAX_WEIGHT', 0) }}%</p>
+        <p><strong>Trading Windows:</strong> {{ settings.get('WINDOWS_ET', 'Not set') }}</p>
+    {% endif %}
+</div>
+{% endblock %}

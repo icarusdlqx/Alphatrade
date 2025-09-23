@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Performance</h1>
+
+<div style="margin-bottom: 2rem;">
+    <canvas id="performanceChart" width="400" height="200"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('performanceChart').getContext('2d');
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: {{ labels|tojson }},
+        datasets: [
+            {
+                label: 'Total Portfolio Value',
+                data: {{ total|tojson }},
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.1
+            },
+            {
+                label: 'Equity Value',
+                data: {{ equity|tojson }},
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                tension: 0.1
+            },
+            {
+                label: 'Cash',
+                data: {{ cash|tojson }},
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                tension: 0.1
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: false,
+                ticks: {
+                    callback: function(value, index, values) {
+                        return '$' + value.toLocaleString();
+                    }
+                }
+            },
+            x: {
+                ticks: {
+                    maxTicksLimit: 10
+                }
+            }
+        },
+        plugins: {
+            title: {
+                display: true,
+                text: 'Portfolio Performance Over Time'
+            },
+            legend: {
+                display: true,
+                position: 'top'
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
