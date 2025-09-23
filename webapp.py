@@ -211,7 +211,7 @@ def run_now():
     
     def run_analysis_async():
         try:
-            run_trader(manual_trigger=True)
+            run_trader(trigger="manual")
             app.logger.info("Manual analysis completed successfully")
         except Exception as e:
             app.logger.error(f"Manual analysis failed: {type(e).__name__}: {e}", exc_info=True)
@@ -256,7 +256,13 @@ def performance():
     from memory import equity_series
     series = equity_series(500)
     # Convert UTC timestamps to Eastern Time for performance chart labels
-    labels = [to_et(r["asof"]).strftime("%Y-%m-%d %H:%M ET") if to_et(r["asof"]) else str(r["asof"]) for r in series]
+    labels = []
+    for r in series:
+        et_time = to_et(r["asof"])
+        if et_time:
+            labels.append(et_time.strftime("%Y-%m-%d %H:%M ET"))
+        else:
+            labels.append(str(r["asof"]))
     equity = [float(r["equity"]) for r in series]
     cash = [float(r["cash"]) for r in series]
     # Calculate total (equity + cash) for each data point

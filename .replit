@@ -52,4 +52,4 @@ externalPort = 80
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["gunicorn", "-w", "1", "-b", "0.0.0.0:5000", "webapp:app"]
+run = ["gunicorn", "--bind=0.0.0.0:5000", "--reuse-port", "-w", "1", "webapp:app"]
