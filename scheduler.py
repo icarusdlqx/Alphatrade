@@ -62,8 +62,18 @@ def main():
                         run_trader(trigger="scheduled")
                         print(f"[{eastern.strftime('%Y-%m-%d %H:%M:%S ET')}] ✅ Trading run completed successfully")
                     except Exception as e:
-                        print(f"[{eastern.strftime('%Y-%m-%d %H:%M:%S ET')}] ❌ Trading run failed: {e}")
-                        insert_log("ERROR", "scheduled_run_failed", {"error": str(e)})
+                        error_msg = str(e)
+                        print(f"[{eastern.strftime('%Y-%m-%d %H:%M:%S ET')}] ❌ Trading run failed: {error_msg}")
+                        
+                        # Check if it's a pattern day trading error
+                        if "pattern day trading" in error_msg.lower() or "40310100" in error_msg:
+                            print(f"   ⚠️  Pattern Day Trading Protection - trades blocked by broker")
+                            insert_log("WARNING", "pattern_day_trading_blocked", {"error": error_msg, "message": "Trades blocked due to PDT protection"})
+                        else:
+                            insert_log("ERROR", "scheduled_run_failed", {"error": error_msg})
+                        
+                        # Continue running regardless of trading errors
+                        print(f"   🔄 Scheduler will continue monitoring for next window")
                     
                     last_run_minute = current_minute
                 
@@ -100,9 +110,17 @@ def main():
             print("Scheduler stopped by user")
             break
         except Exception as e:
-            print(f"Scheduler error: {e}")
+            print(f"[{dt.datetime.now(pytz.timezone('America/New_York')).strftime('%Y-%m-%d %H:%M:%S ET')}] ⚠️  Scheduler error: {e}")
             import traceback
             traceback.print_exc()
+            
+            # Log the scheduler error but keep running
+            try:
+                insert_log("ERROR", "scheduler_error", {"error": str(e), "message": "Scheduler encountered error but will continue"})
+            except:
+                pass  # Don't let logging errors crash the scheduler
+                
+            print("🔄 Scheduler recovering, will continue monitoring...")
             time.sleep(60)  # Wait longer on errors
 
 if __name__ == "__main__":
