@@ -9,6 +9,11 @@ from settings_store import get_settings, init_settings_table
 from trader import main as run_trader, within_time_window_et
 from memory import init_db, insert_log
 
+
+def minute_marker(eastern_dt: dt.datetime):
+    """Return a tuple identifying the minute for a specific Eastern timestamp."""
+    return (eastern_dt.date(), eastern_dt.strftime("%H:%M"))
+
 def should_run_now() -> bool:
     """Check if we should run a trading check now based on configured windows"""
     try:
@@ -35,8 +40,8 @@ def main():
         print(f"Failed to initialize: {e}")
         return
     
-    last_run_minute = None
-    last_status_minute = None
+    last_run_marker = None
+    last_status_marker = None
     check_count = 0
     
     while True:
@@ -44,6 +49,7 @@ def main():
             now = dt.datetime.now(pytz.UTC)
             eastern = now.astimezone(pytz.timezone("America/New_York"))
             current_minute = eastern.strftime("%H:%M")
+            current_marker = minute_marker(eastern)
             check_count += 1
             
             # Get current settings
@@ -52,9 +58,15 @@ def main():
             windows = S.get("WINDOWS_ET", "11:50,14:35")
             
             # Only check once per minute to avoid duplicate runs
-            if current_minute != last_run_minute:
+            if last_run_marker and last_run_marker[0] != current_marker[0]:
+                print(f"[{eastern.strftime('%Y-%m-%d %H:%M:%S ET')}] 📅 New trading day detected – resetting duplicate-run guard")
+                last_run_marker = None
+            if last_status_marker and last_status_marker[0] != current_marker[0]:
+                last_status_marker = None
+
+            if current_marker != last_run_marker:
                 in_window = should_run_now()
-                
+
                 if in_window and enabled:
                     print(f"[{eastern.strftime('%Y-%m-%d %H:%M:%S ET')}] 🚀 TRIGGERING TRADING RUN")
                     print(f"   Windows: {windows} | Enabled: {enabled}")
@@ -75,10 +87,10 @@ def main():
                         # Continue running regardless of trading errors
                         print(f"   🔄 Scheduler will continue monitoring for next window")
                     
-                    last_run_minute = current_minute
-                
+                    last_run_marker = current_marker
+
                 # Show status every 10 minutes or when approaching trading windows
-                elif current_minute != last_status_minute and (check_count % 20 == 0 or 
+                elif current_marker != last_status_marker and (check_count % 20 == 0 or
                     eastern.hour in [11, 14] or current_minute.endswith('0')):
                     
                     # Calculate time to next window
@@ -101,7 +113,7 @@ def main():
                     else:
                         print(f"[{eastern.strftime('%Y-%m-%d %H:%M:%S ET')}] ⏰ Outside trading hours | Windows: {windows}")
                     
-                    last_status_minute = current_minute
+                    last_status_marker = current_marker
             
             # Sleep for 30 seconds before checking again
             time.sleep(30)
